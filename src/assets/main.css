@@ -1,35 +1,100 @@
+@import 'tailwindcss';
 @import './base.css';
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 16px;
+  --text-lg: 22px;
+  --text-xl: 26px;
+  --text-2xl: 40px;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+
+  --shadow-card: 0 4px 10px rgba(0, 0, 0, 0.35);
+  --shadow-pill: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 2px 6px rgba(0, 0, 0, 0.35);
+
+  --color-n-900: #222222;
+  --color-n-850: #2a2d2e;
+  --color-n-800: #2f3233;
+  --color-n-700: #3a3e40;
+  --color-n-600: #4a4e50;
+  --color-n-550: #4d5154;
+  --color-n-500: #565a5c;
+  --color-n-400: #a6abad;
+  --color-n-200: #e0e0e0;
+  --color-n-0: #ffffff;
+
+  --color-a-green: #1ed71e;
+  --color-a-neon: #00e626;
+  --color-a-blue: #2e86f0;
+  --color-a-blue-soft: #4c8df5;
+  --color-a-amber: #ffb300;
+  --color-a-gold: #e6b42a;
+  --color-a-yellow: #ffc107;
+  --color-a-purple: #b44fd8;
+  --color-a-purple-deep: #6c1d9e;
+  --color-a-cyan: #22c3dc;
+  --color-a-orange: #ff8a00;
+  --color-a-red: #d32f2f;
+
+  --color-c1: #1fce1f;
+  --color-c2: #2196f3;
+  --color-c3: #d32f2f;
+  --color-c4: #ffc107;
+  --color-c5: #000000;
+  --color-c6: #e6c35c;
+  --color-c7: #f48fb1;
+  --color-c8: #7986cb;
+
+  --color-surface-app: var(--color-n-900);
+  --color-surface-control: var(--color-n-850);
+  --color-surface-badge: var(--color-n-800);
+  --color-surface-panel: var(--color-n-700);
+  --color-surface-raised: var(--color-n-600);
+
+  --color-border-subtle: var(--color-n-600);
+  --color-border-divider: var(--color-n-500);
+
+  --color-chart-track: var(--color-n-550);
+  --color-chart-line: var(--color-a-blue-soft);
+
+  --color-text-primary: var(--color-n-0);
+  --color-text-secondary: var(--color-n-200);
+  --color-text-muted: var(--color-n-400);
+  --color-text-heading: var(--color-a-gold);
+  --color-text-highlight: var(--color-a-yellow);
+
+  --color-data-money: var(--color-a-green);
+  --color-data-volume: var(--color-a-blue);
+  --color-data-count: var(--color-a-amber);
+  --color-data-forecast: var(--color-a-purple);
+  --color-data-period: var(--color-a-cyan);
+  --color-data-series: var(--color-a-orange);
+  --color-data-rank-a: var(--color-a-purple-deep);
+  --color-data-rank-b: var(--color-a-neon);
+  --color-data-up: var(--color-a-green);
+  --color-data-down: var(--color-a-red);
+
+  --color-brand: var(--color-a-green);
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
-}
-
-@media (min-width: 1024px) {
+@layer base {
   body {
-    display: flex;
-    place-items: center;
+    background-color: var(--color-surface-app);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-weight: 400;
   }
 
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+  *:focus-visible {
+    outline: 2px solid var(--color-data-period);
+    outline-offset: 2px;
   }
 }
