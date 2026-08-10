@@ -16,7 +16,7 @@
 
       <div class="read-section">
         <h3>2. Ler da Coluna B</h3>
-        <button @click="readData" :disabled="isLoading">🔄 Atualizar Leitura</button>
+        <button @click="getProdutostod(accessToken)" :disabled="isLoading">🔄 Atualizar Leitura</button>
         <div class="result">
           <strong>Dados lidos:</strong>
           <pre>{{ readValue }}</pre>
@@ -29,107 +29,70 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted } from 'vue'
+import { useSession } from './composables/session.js'
+import { apiFetch } from './composables/sheetsapi.js'
 
-// CONFIGURAÇÕES
-const SPREADSHEET_ID = '1oCjR7KnvsWDojsiaMS8ymtjGZlCdFk2CcURXUwz5MDQ';
-const CLIENT_ID = '193369999399-vkc96fqqphpsok7cg2vhcgsamepo8tpi.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
-// IMPORTANTE: Altere 'Página1' para o nome exato da aba da sua planilha (ex: 'Sheet1')
-const SHEET_NAME = 'Página1'; 
+const SPREADSHEET_ID = '1oCjR7KnvsWDojsiaMS8ymtjGZlCdFk2CcURXUwz5MDQ'
+const SHEET_NAME = 'Página1'
 
-// ESTADOS
-const inputValue = ref('');
-const readValue = ref('Nenhum dado lido ainda.');
-const isLoading = ref(false);
-const accessToken = ref(null);
-let tokenClient = null;
+const { accessToken, hasSession, init, login } = useSession()
 
-onMounted(() => {
-  // Carrega a biblioteca Google Identity Services (GIS) dinamicamente
-  const script = document.createElement('script');
-  script.src = 'https://accounts.google.com/gsi/client';
-  script.async = true;
-  script.defer = true;
-  script.onload = initClient;
-  document.body.appendChild(script);
-});
+const inputValue = ref('')
+const readValue = ref('Nenhum dado lido ainda.')
+const isLoading = ref(false)
 
-function initClient() {
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: (response) => {
-      if (response.error) {
-        console.error('Erro na autenticação:', response);
-        alert('Falha ao autenticar com o Google.');
-        return;
-      }
-      accessToken.value = response.access_token;
-      readData(); // Lê os dados automaticamente após o login
-    },
-  });
-}
+onMounted(async () => {
+  await init()
+  if (hasSession.value) readData()
+})
 
-function handleAuthClick() {
-  if (tokenClient) {
-    // Abre o popup do Google para o usuário consentir
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+async function handleAuthClick() {
+  try {
+    await login()
+  } catch (e) {
+    console.error('Erro na autenticação:', e)
+    alert('Falha ao autenticar com o Google.')
   }
 }
 
 async function readData() {
-  if (!accessToken.value) return;
-  isLoading.value = true;
-  
+  if (!accessToken.value) return
+  isLoading.value = true
   try {
-    // Endpoint para ler a Coluna B (B1 até B1000)
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!B1:B1000`;
-    const response = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${accessToken.value}` }
-    });
-    
-    if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao ler');
-    
-    const data = await response.json();
-    // Extrai os valores e quebra por linha
-    readValue.value = data.values ? data.values.flat().join('\n') : 'Coluna B vazia.';
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/INFO_BB!A1:A1000`
+    const response = await apiFetch(url)
+    if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao ler')
+    const data = await response.json()
+    readValue.value = data.values ? data.values.flat().join('\n') : 'Coluna B vazia.'
   } catch (error) {
-    console.error('Erro na leitura:', error);
-    readValue.value = `Erro: ${error.message}`;
+    console.error('Erro na leitura:', error)
+    readValue.value = `Erro: ${error.message}`
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
 }
 
 async function writeData() {
-  if (!accessToken.value || !inputValue.value.trim()) return;
-  isLoading.value = true;
-  
+  if (!accessToken.value || !inputValue.value.trim()) return
+  isLoading.value = true
   try {
-    // Endpoint para Adicionar (Append) na próxima linha vazia da Coluna A
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!A:A:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const body = { values: [[inputValue.value.trim()]] };
-    
-    const response = await fetch(url, {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!A:A:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
+    const body = { values: [[inputValue.value.trim()]] }
+    const response = await apiFetch(url, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken.value}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-    
-    if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao escrever');
-    
-    inputValue.value = '';
-    alert('Valor adicionado com sucesso na Coluna A!');
-    await readData(); // Atualiza a leitura
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao escrever')
+    inputValue.value = ''
+    alert('Valor adicionado com sucesso na Coluna A!')
+    await readData()
   } catch (error) {
-    console.error('Erro na escrita:', error);
-    alert(`Erro ao escrever: ${error.message}`);
+    console.error('Erro na escrita:', error)
+    alert(`Erro ao escrever: ${error.message}`)
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
 }
 </script>

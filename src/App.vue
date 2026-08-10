@@ -1,8 +1,42 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+import { onMounted } from 'vue'
+import { useSession } from './components/composables/session.js'
+import LoginPage from './components/LoginPage.vue'
+import HomePage from './components/HomePage.vue'
+
+const { hasSession, initialized, init } = useSession()
+
+onMounted(async () => {
+  await init()
+})
 </script>
 
 <template>
-  <TheWelcome/>
+  <div v-if="!initialized" class="loading-screen">
+    <div class="loading-spinner"></div>
+  </div>
+  <LoginPage v-else-if="!hasSession" />
+  <HomePage v-else />
 </template>
+
+<style>
+.loading-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface-app);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-text-muted);
+  border-top-color: var(--color-text-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
