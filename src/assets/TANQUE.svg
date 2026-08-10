@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 620" width="400" height="620">
+  <!-- ===== SOMENTE LINHAS ===== -->
+  <g fill="none" stroke="#1f2937" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- corpo do tanque (domo + cilindro + fundo) -->
+    <path d="M100 130 A100 85 0 0 1 300 130 L300 555 A100 18 0 0 1 100 555 Z"/>
+    <!-- faixa da base -->
+    <path d="M100 540 A100 18 0 0 0 300 540"/>
+    <!-- boca de visita / tampa superior -->
+    <path d="M186 46 L186 34 Q186 28 192 28 L208 28 Q214 28 214 34 L214 46"/>
+  </g>
+
+  <!-- régua de nível (linhas mais finas) -->
+  <g fill="none" stroke="#1f2937" stroke-width="2.5" stroke-linecap="round">
+    <path d="M126 140 V535 M138 140 V535"/>
+    <path d="M126 170 H134 M126 210 H134 M126 250 H134 M126 290 H134
+             M126 330 H134 M126 370 H134 M126 410 H134 M126 450 H134
+             M126 490 H134 M126 530 H134"/>
+  </g>
+</svg>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 560" width="600" height="560">
+  <!-- ===== ESTRUTURA / SILHUETA ===== -->
+  <g fill="none" stroke="#1f2937" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- silhueta externa (frente, lateral e topo) -->
+    <path d="M90 170 L220 140 L510 140 L510 430 L380 470 L90 470 Z"/>
+    <!-- arestas das faces -->
+    <path d="M90 170 H380 V470 M380 170 L510 140"/>
+    <!-- pallet frente -->
+    <path d="M90 470 V500 H380 V470"/>
+    <!-- pallet lateral -->
+    <path d="M380 470 V500 L510 460 V430"/>
+  </g>
+
+  <!-- ===== GAIOLA TUBULAR (linhas finas) ===== -->
+  <g fill="none" stroke="#1f2937" stroke-width="2.5" stroke-linecap="round">
+    <!-- grade frontal -->
+    <path d="M162 170 V470 M235 170 V470 M308 170 V470"/>
+    <path d="M90 245 H380 M90 320 H380 M90 395 H380"/>
+    <!-- grade lateral -->
+    <path d="M412 162 V460 M445 155 V450 M478 148 V440"/>
+    <path d="M380 245 L510 212 M380 320 L510 285 M380 395 L510 358"/>
+    <!-- grade do topo -->
+    <path d="M162 170 L292 140 M235 170 L365 140 M308 170 L438 140"/>
+    <path d="M133 160 H423 M176 150 H466"/>
+  </g>
+
+  <!-- ===== TAMPA E VÁLVULA ===== -->
+  <g fill="none" stroke="#1f2937" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- tampa de abastecimento (topo) -->
+    <ellipse fill="#1f2937" cx="330" cy="143" rx="26" ry="9"/>
+    <path d="M304 143 V152 A26 9 0 0 0 356 152 V143"/>
+
+  </g>
+</svg>

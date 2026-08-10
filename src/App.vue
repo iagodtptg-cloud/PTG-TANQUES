@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useSession } from './components/composables/session.js'
 import LoginPage from './components/LoginPage.vue'
 import HomePage from './components/HomePage.vue'
+import BombonaIcon from './components/icons/BombonaIcon.vue'
 
 const { hasSession, initialized, init } = useSession()
 
@@ -12,11 +13,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div v-if="!initialized" class="loading-screen">
-    <div class="loading-spinner"></div>
+  <div class="bg-black min-h-screen">
+    <div v-if="!initialized" class="loading-screen">
+      <div class="loading-spinner"></div>
+    </div>
+    <LoginPage v-else-if="!hasSession" />
+    <HomePage v-else />
   </div>
-  <LoginPage v-else-if="!hasSession" />
-  <HomePage v-else />
 </template>
 
 <style>
