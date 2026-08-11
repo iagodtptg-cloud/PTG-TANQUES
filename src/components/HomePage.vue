@@ -1,6 +1,18 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getProductInfo, getProdutos, updateStorage } from './composables/sheetsapi'
+import {
+  ref,
+  computed,
+  nextTick,
+  onMounted,
+  onBeforeUnmount
+} from 'vue'
+
+import {
+  getProductInfo,
+  getProdutos,
+  updateStorage
+} from './composables/sheetsapi'
+
 import TanqueIcon from './icons/TanqueIcon.vue'
 import IBCIcon from './icons/IBCIcon.vue'
 import BombonaIcon from './icons/BombonaIcon.vue'
@@ -88,11 +100,11 @@ function showAlert(msg, type = 'error') {
 }
 
 /**
- * Formata apenas para exibição.
+ * Formata um número para exibição.
  *
  * Exemplos:
- * 1000    -> 1.000
- * 1250.5  -> 1.250,5
+ * 1000   -> 1.000
+ * 1250.5 -> 1.250,5
  */
 function formatarQuantidade(valor) {
   if (valor === null || valor === undefined || valor === '') {
@@ -112,7 +124,7 @@ function formatarQuantidade(valor) {
 }
 
 /**
- * Converte o valor visual para número.
+ * Converte o valor formatado para número.
  *
  * Exemplos:
  * 1.000   -> 1000
@@ -133,16 +145,120 @@ function normalizarQuantidade(valor) {
   return Number.isFinite(numero) ? numero : 0
 }
 
-function atualizarQuantidade(event) {
-  quantidadeInput.value = event.target.value
+/**
+ * Formata os milhares durante a digitação.
+ *
+ * Exemplos:
+ * 1
+ * 10
+ * 100
+ * 1.000
+ * 10.000
+ * 100.000
+ */
+function formatarDuranteDigitacao(event) {
+  const input = event.target
+  const valorOriginal = input.value
+  const posicaoCursor = input.selectionStart || 0
+
+  const textoAntesCursor = valorOriginal.slice(
+    0,
+    posicaoCursor
+  )
+
+  const quantidadeDigitosAntes =
+    textoAntesCursor.replace(/\D/g, '').length
+
+  const possuiVirgula = valorOriginal.includes(',')
+
+  let [parteInteira = '', parteDecimal = ''] =
+    valorOriginal.split(',')
+
+  parteInteira = parteInteira.replace(/\D/g, '')
+  parteDecimal = parteDecimal.replace(/\D/g, '')
+
+  // Limita a parte decimal a três casas.
+  parteDecimal = parteDecimal.slice(0, 3)
+
+  // Permite apagar completamente o campo.
+  if (parteInteira === '' && !possuiVirgula) {
+    quantidadeInput.value = ''
+
+    nextTick(() => {
+      input.setSelectionRange(0, 0)
+    })
+
+    return
+  }
+
+  if (parteInteira === '') {
+    parteInteira = '0'
+  }
+
+  // Remove zeros à esquerda, mantendo apenas um zero.
+  parteInteira = parteInteira.replace(/^0+(?=\d)/, '')
+
+  const parteInteiraFormatada = parteInteira.replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    '.'
+  )
+
+  let valorFormatado = parteInteiraFormatada
+
+  if (possuiVirgula) {
+    valorFormatado += `,${parteDecimal}`
+  }
+
+  quantidadeInput.value = valorFormatado
+
+  nextTick(() => {
+    let novaPosicaoCursor = 0
+    let digitosEncontrados = 0
+
+    for (
+      let index = 0;
+      index < valorFormatado.length;
+      index++
+    ) {
+      if (/\d/.test(valorFormatado[index])) {
+        digitosEncontrados++
+
+        if (
+          digitosEncontrados === quantidadeDigitosAntes
+        ) {
+          novaPosicaoCursor = index + 1
+          break
+        }
+      }
+    }
+
+    if (quantidadeDigitosAntes === 0) {
+      novaPosicaoCursor = 0
+    }
+
+    const virgulaAntesCursor =
+      textoAntesCursor.includes(',')
+
+    // Mantém o cursor depois da vírgula quando o usuário
+    // acabou de digitá-la, por exemplo: 1.000,
+    if (
+      virgulaAntesCursor &&
+      parteDecimal.length === 0
+    ) {
+      novaPosicaoCursor =
+        valorFormatado.indexOf(',') + 1
+    }
+
+    input.setSelectionRange(
+      novaPosicaoCursor,
+      novaPosicaoCursor
+    )
+  })
 }
 
-function limparFormatacaoQuantidade() {
-  quantidadeInput.value = quantidadeInput.value
-    .replace(/\./g, '')
-    .replace(',', '.')
-}
-
+/**
+ * Garante a formatação final ao sair do campo.
+ */
 function formatarQuantidadeAoSair() {
   const valor = normalizarQuantidade(quantidadeInput.value)
 
@@ -208,7 +324,8 @@ const unidadesIBC = computed(() => {
   const capacidade = parseFloat(infoIBC.value[0]?.[1]) || 1000
   const total = Math.ceil(valorAtual / capacidade)
   const parcial =
-    (valorAtual / capacidade) - Math.floor(valorAtual / capacidade)
+    (valorAtual / capacidade) -
+    Math.floor(valorAtual / capacidade)
 
   return {
     valor: valorAtual,
@@ -248,7 +365,8 @@ const unidadesBB = computed(() => {
   const capacidade = parseFloat(bbSelecionada[1]) || 1
   const total = Math.ceil(valorAtual / capacidade)
   const parcial =
-    (valorAtual / capacidade) - Math.floor(valorAtual / capacidade)
+    (valorAtual / capacidade) -
+    Math.floor(valorAtual / capacidade)
 
   return {
     valor: valorAtual,
@@ -271,7 +389,6 @@ async function selecionarTanque(id) {
 
   dropdownOpen.value = false
   busca.value = ''
-
   quantidadeInput.value = ''
 
   const produto = produtos.value.find(
@@ -285,12 +402,14 @@ async function selecionarTanque(id) {
   try {
     const data = await getProductInfo(produto.nome)
 
-    tanques.value = (data.INFO_TANQUES || []).map((row, index) => ({
-      id: index + 1,
-      nome: row[1],
-      capacidade: parseFloat(row[2]) || 0,
-      atual: parseFloat(row[4]) || 0
-    }))
+    tanques.value = (data.INFO_TANQUES || []).map(
+      (row, index) => ({
+        id: index + 1,
+        nome: row[1],
+        capacidade: parseFloat(row[2]) || 0,
+        atual: parseFloat(row[4]) || 0
+      })
+    )
 
     infoIBC.value = data.INFO_IBC || null
     infoBB.value = data.INFO_BB || null
@@ -327,6 +446,7 @@ function selecionarTanqueGrid(id) {
   }
 
   tanqueSelecionado.value = id
+
   containerSelecionado.value = {
     tipo: 'tanque'
   }
@@ -362,10 +482,12 @@ async function carregarProdutos() {
   try {
     const data = await getProdutos()
 
-    produtos.value = (data.values || []).map((row, index) => ({
-      id: index + 1,
-      nome: row[0]
-    }))
+    produtos.value = (data.values || []).map(
+      (row, index) => ({
+        id: index + 1,
+        nome: row[0]
+      })
+    )
   } catch (error) {
     console.error('Erro ao carregar produtos:', error)
     showAlert('Erro ao carregar produtos')
@@ -373,7 +495,9 @@ async function carregarProdutos() {
 }
 
 async function entrada() {
-  const qnt = normalizarQuantidade(quantidadeInput.value)
+  const qnt = normalizarQuantidade(
+    quantidadeInput.value
+  )
 
   if (!qnt || qnt <= 0) {
     showAlert('Informe uma quantidade válida')
@@ -402,8 +526,12 @@ async function entrada() {
         return
       }
 
-      if (tanque.atual + qnt > tanque.capacidade) {
-        const disponivel = tanque.capacidade - tanque.atual
+      if (
+        tanque.atual + qnt >
+        tanque.capacidade
+      ) {
+        const disponivel =
+          tanque.capacidade - tanque.atual
 
         showAlert(
           `Excede capacidade. Disponível: ${formatarQuantidade(disponivel)}L`
@@ -439,7 +567,9 @@ async function entrada() {
       containerSelecionado.value.tipo === 'bb'
     ) {
       const bb = infoBB.value?.find(
-        item => item[1] === containerSelecionado.value.valor
+        item =>
+          item[1] ===
+          containerSelecionado.value.valor
       )
 
       if (!bb) {
@@ -469,7 +599,9 @@ async function entrada() {
 }
 
 async function saida() {
-  const qnt = normalizarQuantidade(quantidadeInput.value)
+  const qnt = normalizarQuantidade(
+    quantidadeInput.value
+  )
 
   if (!qnt || qnt <= 0) {
     showAlert('Informe uma quantidade válida')
@@ -521,7 +653,8 @@ async function saida() {
         return
       }
 
-      const atual = parseFloat(infoIBC.value[0][3]) || 0
+      const atual =
+        parseFloat(infoIBC.value[0][3]) || 0
 
       if (qnt > atual) {
         showAlert(
@@ -543,7 +676,9 @@ async function saida() {
       containerSelecionado.value.tipo === 'bb'
     ) {
       const bb = infoBB.value?.find(
-        item => item[1] === containerSelecionado.value.valor
+        item =>
+          item[1] ===
+          containerSelecionado.value.valor
       )
 
       if (!bb) {
@@ -583,13 +718,19 @@ async function saida() {
 }
 
 onMounted(async () => {
-  document.addEventListener('click', onClickOutside)
+  document.addEventListener(
+    'click',
+    onClickOutside
+  )
 
   await carregarProdutos()
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('click', onClickOutside)
+  document.removeEventListener(
+    'click',
+    onClickOutside
+  )
 })
 </script>
 
@@ -610,7 +751,9 @@ onBeforeUnmount(() => {
           }" @click="toggleDropdown">
           {{
             selecionado
-              ? produtos.find(produto => produto.id === selecionado)?.nome
+              ? produtos.find(
+                produto => produto.id === selecionado
+              )?.nome
               : 'Selecionar produto'
           }}
 
@@ -673,7 +816,7 @@ onBeforeUnmount(() => {
                 ">
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z" />
+                  d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 0-1 1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z" />
               </svg>
 
               Limpar seleção
@@ -699,7 +842,8 @@ onBeforeUnmount(() => {
                   : theme.surfaceAlt
             }" @mouseenter="hoveredTanque = tanque.id" @mouseleave="hoveredTanque = null"
             @click="selecionarTanqueGrid(tanque.id)">
-            <TanqueIcon :size="60" :fillPercent="(tanque.atual / tanque.capacidade) * 100" :color="theme.liquidFill" />
+            <TanqueIcon :size="60" :fillPercent="(tanque.atual / tanque.capacidade) * 100
+              " :color="theme.liquidFill" />
 
             <span class="text-xs text-center font-medium" :style="{ color: theme.textPrimary }">
               {{ tanque.nome }}
@@ -707,11 +851,11 @@ onBeforeUnmount(() => {
 
             <div class="flex flex-col text-xs text-center">
               <span class="font-bold" :style="{ color: theme.textPrimary }">
-                {{ tanque.atual }}L
+                {{ formatarQuantidade(tanque.atual) }}L
               </span>
 
               <span :style="{ color: theme.textMuted }">
-                /{{ tanque.capacidade }}L
+                /{{ formatarQuantidade(tanque.capacidade) }}L
               </span>
             </div>
           </div>
@@ -788,10 +932,7 @@ onBeforeUnmount(() => {
           class="w-110 px-4 py-3 rounded-lg text-center text-2xl border-none focus:outline-2" :style="{
             background: theme.surfaceBg,
             color: theme.textWhite
-          }" placeholder="0" @focus="
-            quantidadeEmFoco = true;
-          limparFormatacaoQuantidade()
-            " @input="atualizarQuantidade" @blur="
+          }" placeholder="0" @focus="quantidadeEmFoco = true" @input="formatarDuranteDigitacao" @blur="
             quantidadeEmFoco = false;
           formatarQuantidadeAoSair()
             " />
@@ -886,7 +1027,8 @@ onBeforeUnmount(() => {
           <div class="grid grid-cols-5 gap-2 content-start">
             <div v-for="i in unidadesIBC.exibir" :key="i" class="flex items-center justify-center">
               <IBCIcon :size="50" :fillPercent="i <= Math.floor(
-                unidadesIBC.valor / unidadesIBC.capacidade
+                unidadesIBC.valor /
+                unidadesIBC.capacidade
               )
                   ? 100
                   : unidadesIBC.parcial * 100
@@ -923,7 +1065,8 @@ onBeforeUnmount(() => {
           <div class="grid grid-cols-5 gap-2 content-start">
             <div v-for="i in unidadesBB.exibir" :key="i" class="flex items-center justify-center">
               <BombonaIcon :size="50" :fillPercent="i <= Math.floor(
-                unidadesBB.valor / unidadesBB.capacidade
+                unidadesBB.valor /
+                unidadesBB.capacidade
               )
                   ? 100
                   : unidadesBB.parcial * 100
