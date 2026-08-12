@@ -267,6 +267,12 @@ function formatarQuantidadeAoSair() {
     : ''
 }
 
+const tanqueInoxSelecionado = computed(() => {
+  if (containerSelecionado.value?.tipo !== 'tanque' || !tanqueSelecionado.value) return false
+  const tanque = tanques.value.find(t => t.id === tanqueSelecionado.value)
+  return tanque?.isInox || false
+})
+
 const tituloControles = computed(() => {
   const produto = produtos.value.find(
     produto => produto.id === selecionado.value
@@ -407,7 +413,9 @@ async function selecionarTanque(id) {
         id: index + 1,
         nome: row[1],
         capacidade: parseFloat(row[2]) || 0,
-        atual: parseFloat(row[4]) || 0
+        atual: parseFloat(row[4]) || 0,
+        isInox: row[5]?.toString().toUpperCase() === 'TRUE',
+        txCnv: parseFloat(row[6]) || 0
       })
     )
 
@@ -526,8 +534,17 @@ async function entrada() {
         return
       }
 
+      let litros = qnt
+      if (tanque.isInox) {
+        if (!tanque.txCnv) {
+          showAlert('Tanque inox sem taxa de conversão configurada')
+          return
+        }
+        litros = Math.trunc((qnt * tanque.capacidade) / tanque.txCnv)
+      }
+
       if (
-        tanque.atual + qnt >
+        tanque.atual + litros >
         tanque.capacidade
       ) {
         const disponivel =
@@ -543,7 +560,7 @@ async function entrada() {
       const novoValor = await updateStorage(
         produto.nome,
         tanque.nome,
-        qnt,
+        litros,
         'tanque'
       )
 
