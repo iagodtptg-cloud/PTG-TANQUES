@@ -20,8 +20,7 @@
 
     <g fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round">
       <path d="M126 140 V535 M138 140 V535"/>
-      <path
-d="M126 170 H134 M126 210 H134 M126 250 H134 M126 290 H134
+      <path d="M126 170 H134 M126 210 H134 M126 250 H134 M126 290 H134
                M126 330 H134 M126 370 H134 M126 410 H134 M126 450 H134
                M126 490 H134 M126 530 H134"/>
     </g>

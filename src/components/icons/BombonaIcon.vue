@@ -2,8 +2,7 @@
   <svg :width="size" :height="size * 1.2" viewBox="0 0 600 720" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <clipPath id="bombona-body">
-        <path
-d="M117 202 L136 146 Q139 137 149 137 L238 137 Q248 137 251 128
+        <path d="M117 202 L136 146 Q139 137 149 137 L238 137 Q248 137 251 128
                  L260 82 Q263 71 274 71 L449 71 Q459 71 463 80 L483 136
                  L483 616 Q483 649 450 649 L150 649 Q117 649 117 616 Z"/>
       </clipPath>
@@ -16,8 +15,7 @@ d="M117 202 L136 146 Q139 137 149 137 L238 137 Q248 137 251 128
 
     <!-- Outlines -->
     <g fill="none" stroke="#9ca3af" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-      <path
-d="M117 202 L136 146 Q139 137 149 137 L238 137 Q248 137 251 128
+      <path d="M117 202 L136 146 Q139 137 149 137 L238 137 Q248 137 251 128
                L260 82 Q263 71 274 71 L449 71 Q459 71 463 80 L483 136
                L483 616 Q483 649 450 649 L150 649 Q117 649 117 616 Z"/>
       <path d="M154 137 L154 98 Q154 93 159 93 L229 93 Q234 93 234 98 L234 137"/>
