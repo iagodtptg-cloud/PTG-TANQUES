@@ -4,19 +4,19 @@
     
     <div v-if="!accessToken" class="auth-section">
       <p>Para ler e escrever, você precisa autorizar o acesso à sua conta do Google.</p>
-      <button @click="handleAuthClick" class="btn-auth">🔐 Login com Google</button>
+      <button class="btn-auth" @click="handleAuthClick">🔐 Login com Google</button>
     </div>
 
     <div v-else class="actions-section">
       <div class="write-section">
         <h3>1. Escrever na Coluna A</h3>
         <input v-model="inputValue" type="text" placeholder="Digite um valor..." @keyup.enter="writeData" />
-        <button @click="writeData" :disabled="isLoading">Adicionar</button>
+        <button :disabled="isLoading" @click="writeData">Adicionar</button>
       </div>
 
       <div class="read-section">
         <h3>2. Ler da Coluna B</h3>
-        <button @click="getProdutostod(accessToken)" :disabled="isLoading">🔄 Atualizar Leitura</button>
+        <button :disabled="isLoading" @click="getProdutostod(accessToken)">🔄 Atualizar Leitura</button>
         <div class="result">
           <strong>Dados lidos:</strong>
           <pre>{{ readValue }}</pre>
