@@ -9,7 +9,7 @@
       <path d="M0 0 H1600 V737 H992 Q812 793 632 737 H0 Z"/>
     </clipPath>
     <clipPath id="tankBody">
-      <path d="M628 212 L632 737 Q812 793 992 737 L995 212 Z"/>
+      <path d="M628 212 L632 737 Q812 793 992 737 L995 212 C992 150 916 126 811 126 C706 126 630 150 628 212 Z"/>
     </clipPath>
   </defs>
 
@@ -21,29 +21,29 @@
 
   <path d="M868 810 V864" fill="none" stroke="#000" stroke-width="9"/>
   <path d="M868 810 V864" fill="none" stroke="none" stroke-width="5"/>
-  <ellipse cx="868" cy="869" rx="15" ry="6" fill="none" stroke="#000" stroke-width="2.5"/>
+  <ellipse cx="868" cy="869" rx="15" ry="6" fill="#000" stroke="#000" stroke-width="2.5"/>
 
   <path d="M652 754 V898" fill="none" stroke="#000" stroke-width="9"/>
   <path d="M652 754 V898" fill="none" stroke="none" stroke-width="5"/>
-  <ellipse cx="654" cy="903" rx="17" ry="7" fill="none" stroke="#000" stroke-width="2.5"/>
+  <ellipse cx="654" cy="903" rx="17" ry="7" fill="#000" stroke="#000" stroke-width="2.5"/>
 
   <path d="M966 752 V924" fill="none" stroke="#000" stroke-width="9"/>
   <path d="M966 752 V924" fill="none" stroke="none" stroke-width="5"/>
-  <ellipse cx="966" cy="929" rx="17" ry="7" fill="none" stroke="#000" stroke-width="2.5"/>
+  <ellipse cx="966" cy="929" rx="17" ry="7" fill="#000" stroke="#000" stroke-width="2.5"/>
 
-  <path d="M652 756 L786 856 Q812 868 838 856 L972 756 Q812 800 652 756 Z" fill="none" stroke="#000" stroke-width="3"/>
+  <path d="M652 756 L786 856 Q812 868 838 856 L972 756 Q812 800 652 756 Z" fill="#000" stroke="#000" stroke-width="3"/>
 
   <path d="M747 800 V960" fill="none" stroke="#000" stroke-width="9" stroke-linecap="round"/>
   <path d="M747 800 V960" fill="none" stroke="none" stroke-width="5" stroke-linecap="round"/>
-  <ellipse cx="747" cy="965" rx="18" ry="7.5" fill="none" stroke="#000" stroke-width="2.5"/>
+  <ellipse cx="747" cy="965" rx="18" ry="7.5" fill="#000" stroke="#000" stroke-width="2.5"/>
 
   <!-- ===== CORPO + DOMO ===== -->
-  <path :d="liquidPath" :fill="color"/>
+  <path :d="liquidPath" :fill="color" clip-path="url(#tankBody)"/>
   <g stroke="#000" stroke-width="3" fill="none" stroke-linecap="round">
     <path d="M628 212 L632 737"/>
     <path d="M995 212 L992 737"/>
-    <path d="M632 737 Q812 793 992 737"/>
-    <path d="M632 750 Q812 806 992 750"/>
+    <path d="M632 737 Q812 793 992 737" />
+    <path d="M632 750 Q812 806 992 750" />
     <path d="M632 737 V750 M992 737 V750"/>
     <path d="M628 212 Q811 241 995 212"/>
     <path d="M628 212 C630 150 706 126 811 126 C916 126 992 150 995 212"/>
@@ -72,8 +72,8 @@ const props = defineProps({
   color: { type: String, default: '#22c3dc' }
 })
 
-const TOP = 212
-const BOTTOM = 737
+const TOP = 126
+const BOTTOM = 793
 const TOTAL_H = BOTTOM - TOP
 
 const liquidHeight = computed(() => (props.fillPercent / 100) * TOTAL_H)
@@ -81,6 +81,6 @@ const liquidY = computed(() => BOTTOM - liquidHeight.value)
 const liquidPath = computed(() => {
   if (props.fillPercent <= 0) return ''
   const y = liquidY.value
-  return `M632 ${y} L632 737 Q812 793 992 737 L992 ${y} Z`
+  return `M628 ${y} L628 793 L995 793 L995 ${y} Z`
 })
 </script>
