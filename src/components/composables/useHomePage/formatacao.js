@@ -23,7 +23,7 @@ export function normalizarQuantidade(valor) {
   return Number.isFinite(numero) ? numero : 0
 }
 
-export function formatarDuranteDigitacao(event, quantidadeInput) {
+export function formatarDuranteDigitacao(event, quantidadeInput, capacidadeMaxima) {
   const input = event.target
   const valorOriginal = input.value
   const posicaoCursor = input.selectionStart || 0
@@ -46,6 +46,16 @@ export function formatarDuranteDigitacao(event, quantidadeInput) {
     parteInteira = '0'
   }
   parteInteira = parteInteira.replace(/^0+(?=\d)/, '')
+
+  if (capacidadeMaxima && capacidadeMaxima > 0) {
+    const valorNormalizado = Number(parteInteira.replace(/\./g, '') + (parteDecimal ? '.' + parteDecimal : ''))
+    if (valorNormalizado > capacidadeMaxima) {
+      const capacidadeStr = String(capacidadeMaxima)
+      const [capInteira = '', capDecimal = ''] = capacidadeStr.split('.')
+      parteInteira = capInteira
+      parteDecimal = capDecimal.slice(0, 3)
+    }
+  }
 
   const parteInteiraFormatada = parteInteira.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   let valorFormatado = parteInteiraFormatada
@@ -82,7 +92,10 @@ export function formatarDuranteDigitacao(event, quantidadeInput) {
   })
 }
 
-export function formatarQuantidadeAoSair(quantidadeInput) {
-  const valor = normalizarQuantidade(quantidadeInput.value)
+export function formatarQuantidadeAoSair(quantidadeInput, capacidadeMaxima) {
+  let valor = normalizarQuantidade(quantidadeInput.value)
+  if (capacidadeMaxima && capacidadeMaxima > 0 && valor > capacidadeMaxima) {
+    valor = capacidadeMaxima
+  }
   quantidadeInput.value = valor > 0 ? formatarQuantidade(valor) : ''
 }

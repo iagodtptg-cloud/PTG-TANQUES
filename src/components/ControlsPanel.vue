@@ -26,10 +26,7 @@
         class="w-110 px-4 py-3 rounded-lg text-center text-2xl border-none focus:outline-2" :style="{
           background: theme.surfaceBg,
           color: theme.textWhite
-        }" placeholder="0" @focus="quantidadeEmFoco = true" @input="formatarDuranteDigitacao($event, quantidadeInput)" @blur="
-          quantidadeEmFoco = false;
-          formatarQuantidadeAoSair(quantidadeInput)
-        " />
+        }" placeholder="0" @focus="quantidadeEmFoco = true" @input="aoDigitarQuantidade" @blur="aoSairQuantidade" />
 
       <div class="flex gap-20">
         <button class="px-6 py-3 w-45 rounded-lg text-white font-medium transition-colors"
@@ -61,6 +58,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useHomePage } from './composables/useHomePage'
 import { formatarQuantidade, normalizarQuantidade, formatarDuranteDigitacao, formatarQuantidadeAoSair } from './composables/useHomePage/formatacao'
 
@@ -68,12 +66,28 @@ const {
   theme,
   alertMsg,
   alertType,
+  tanques,
   quantidadeInput,
   quantidadeEmFoco,
   selecionado,
+  tanqueSelecionado,
   containerSelecionado,
   tituloControles,
   entrada,
   saida
 } = useHomePage()
+
+const capacidadeMaxima = computed(() => {
+  if (containerSelecionado.value?.tipo === 'tanque' && tanqueSelecionado.value) {
+    const tanque = tanques.value.find(t => t.id === tanqueSelecionado.value)
+    return tanque?.capacidade || 0
+  }
+  return 0
+})
+
+const aoDigitarQuantidade = (event) => formatarDuranteDigitacao(event, quantidadeInput, capacidadeMaxima.value)
+const aoSairQuantidade = () => {
+  quantidadeEmFoco.value = false
+  formatarQuantidadeAoSair(quantidadeInput, capacidadeMaxima.value)
+}
 </script>

@@ -48,16 +48,16 @@ export function createBusinessLogic(estado, api) {
           showAlert(`Excede capacidade. Disponível: ${disponivel}L`)
           return
         }
-        const novoValor = await updateStorage(produto.nome, tanque.nome, litros, 'tanque')
+        const novoValor = await updateStorage(produto.nome, tanque.nome, litros, 'tanque', tanque.atual)
         tanque.atual = novoValor
       } else if (containerSelecionado.value.tipo === 'ibc') {
         if (!infoIBC.value?.[0]) return
-        const novoValor = await updateStorage(produto.nome, null, qnt, 'ibc')
+        const novoValor = await updateStorage(produto.nome, null, qnt, 'ibc', infoIBC.value[0][3])
         infoIBC.value[0][3] = novoValor
       } else if (containerSelecionado.value.tipo === 'bb') {
         const bb = infoBB.value?.find(item => item[1] === containerSelecionado.value.valor)
         if (!bb) return
-        const novoValor = await updateStorage(produto.nome, bb[1], qnt, 'bb')
+        const novoValor = await updateStorage(produto.nome, bb[1], qnt, 'bb', bb[3])
         bb[3] = novoValor
       }
 
@@ -89,7 +89,7 @@ export function createBusinessLogic(estado, api) {
           showAlert(`Excede disponível. Atual: ${tanque.atual}L`)
           return
         }
-        const novoValor = await updateStorage(produto.nome, tanque.nome, -qnt, 'tanque')
+        const novoValor = await updateStorage(produto.nome, tanque.nome, -qnt, 'tanque', tanque.atual)
         tanque.atual = novoValor
       } else if (containerSelecionado.value.tipo === 'ibc') {
         if (!infoIBC.value?.[0]) return
@@ -98,7 +98,7 @@ export function createBusinessLogic(estado, api) {
           showAlert(`Excede disponível. Atual: ${atual}L`)
           return
         }
-        const novoValor = await updateStorage(produto.nome, null, -qnt, 'ibc')
+        const novoValor = await updateStorage(produto.nome, null, -qnt, 'ibc', infoIBC.value[0][3])
         infoIBC.value[0][3] = novoValor
       } else if (containerSelecionado.value.tipo === 'bb') {
         const bb = infoBB.value?.find(item => item[1] === containerSelecionado.value.valor)
@@ -108,7 +108,7 @@ export function createBusinessLogic(estado, api) {
           showAlert(`Excede disponível. Atual: ${atual}L`)
           return
         }
-        const novoValor = await updateStorage(produto.nome, bb[1], -qnt, 'bb')
+        const novoValor = await updateStorage(produto.nome, bb[1], -qnt, 'bb', bb[3])
         bb[3] = novoValor
       }
 

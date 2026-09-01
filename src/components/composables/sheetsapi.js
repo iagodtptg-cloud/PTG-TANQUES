@@ -65,8 +65,8 @@ export async function getProductInfo(produto) {
     return resultados
 }
 
-export async function updateStorage(prod, deriv, qnt, tipo = 'tanque') {
-    if (TEST_MODE) return qnt
+export async function updateStorage(prod, deriv, qnt, tipo = 'tanque', valorAtualLocal = 0) {
+    if (TEST_MODE) return valorAtualLocal + qnt
     const config = {
         tanque: { aba: 'INFO_TANQUES', coluna: 'E', colIndex: 4, match: (row) => row[0]?.toUpperCase() === prod.toUpperCase() && row[1]?.toUpperCase() === deriv.toUpperCase() },
         ibc: { aba: 'INFO_IBC', coluna: 'D', colIndex: 3, match: (row) => row[0]?.toUpperCase() === prod.toUpperCase() },

@@ -14,7 +14,7 @@
       </span>
 
       <div class="flex items-center gap-6">
-        <TanqueIcon :size="160" :fillPercent="(
+        <TanqueIcon :size="210" :fillPercent="(
             tanques.find(
               tanque => tanque.id === tanqueSelecionado
             )?.atual /
