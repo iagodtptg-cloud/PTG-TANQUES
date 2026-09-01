@@ -1,8 +1,16 @@
 import { useSession } from './session.js'
+import { API_A2A, INFOTANQUES } from '../../testeData.js'
 
+const TEST_MODE = import.meta.env.DEV
 const SPREADSHEET_ID = '1oCjR7KnvsWDojsiaMS8ymtjGZlCdFk2CcURXUwz5MDQ'
 
 export async function apiFetch(url, options = {}) {
+    if (TEST_MODE) {
+        return new Response(JSON.stringify(API_A2A), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
     const { accessToken, silentRefresh } = useSession()
     const res = await fetch(url, {
         ...options,
@@ -19,6 +27,7 @@ export async function apiFetch(url, options = {}) {
 }
 
 export async function getProdutos() {
+    if (TEST_MODE) return API_A2A
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/API!A2:A`
     const response = await apiFetch(url)
     if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao ler')
@@ -26,17 +35,23 @@ export async function getProdutos() {
 }
 
 export async function getProductInfo(produto) {
-    const abas = ['INFO_TANQUES!A2:Z', 'INFO_IBC!A2:Z', 'INFO_BB!A2:Z']
+    let data
 
-    const params = new URLSearchParams()
-    abas.forEach(aba => params.append('ranges', aba))
+    if (TEST_MODE) {
+        data = INFOTANQUES
+    } else {
+        const abas = ['INFO_TANQUES!A2:Z', 'INFO_IBC!A2:Z', 'INFO_BB!A2:Z']
 
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?${params.toString()}`
+        const params = new URLSearchParams()
+        abas.forEach(aba => params.append('ranges', aba))
 
-    const response = await apiFetch(url)
-    if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao ler abas')
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?${params.toString()}`
 
-    const data = await response.json()
+        const response = await apiFetch(url)
+        if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao ler abas')
+
+        data = await response.json()
+    }
 
     const resultados = {}
     data.valueRanges.forEach(item => {
@@ -51,6 +66,7 @@ export async function getProductInfo(produto) {
 }
 
 export async function updateStorage(prod, deriv, qnt, tipo = 'tanque') {
+    if (TEST_MODE) return qnt
     const config = {
         tanque: { aba: 'INFO_TANQUES', coluna: 'E', colIndex: 4, match: (row) => row[0]?.toUpperCase() === prod.toUpperCase() && row[1]?.toUpperCase() === deriv.toUpperCase() },
         ibc: { aba: 'INFO_IBC', coluna: 'D', colIndex: 3, match: (row) => row[0]?.toUpperCase() === prod.toUpperCase() },

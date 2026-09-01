@@ -36,7 +36,7 @@ async function handleLogin() {
   try {
     await login()
     emit('success')
-  } catch (e) {
+  } catch {
     error.value = 'Falha ao autenticar. Tente novamente.'
   } finally {
     loading.value = false
