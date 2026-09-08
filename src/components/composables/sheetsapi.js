@@ -1,11 +1,22 @@
 import { useSession } from './session.js'
-import { API_A2A, INFOTANQUES } from '../../testeData.js'
 
 const TEST_MODE = import.meta.env.DEV
-const SPREADSHEET_ID = '1oCjR7KnvsWDojsiaMS8ymtjGZlCdFk2CcURXUwz5MDQ'
+const SPREADSHEET_ID = import.meta.env.VITE_GOOGLE_SPREADSHEET_ID
+
+// Mock carregado dinamicamente só em dev — nunca entra no bundle de prod.
+async function loadMockData() {
+  return import('../../testeData.js')
+}
+
+function assertSpreadsheetId() {
+  if (!SPREADSHEET_ID) {
+    throw new Error('VITE_GOOGLE_SPREADSHEET_ID não configurado. Defina no .env / Netlify Env.')
+  }
+}
 
 export async function apiFetch(url, options = {}) {
     if (TEST_MODE) {
+        const { API_A2A } = await loadMockData()
         return new Response(JSON.stringify(API_A2A), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -27,7 +38,11 @@ export async function apiFetch(url, options = {}) {
 }
 
 export async function getProdutos() {
-    if (TEST_MODE) return API_A2A
+    if (TEST_MODE) {
+        const { API_A2A } = await loadMockData()
+        return API_A2A
+    }
+    assertSpreadsheetId()
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/API!A2:A`
     const response = await apiFetch(url)
     if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao ler')
@@ -38,8 +53,10 @@ export async function getProductInfo(produto) {
     let data
 
     if (TEST_MODE) {
+        const { INFOTANQUES } = await loadMockData()
         data = INFOTANQUES
     } else {
+        assertSpreadsheetId()
         const abas = ['INFO_TANQUES!A2:Z', 'INFO_IBC!A2:Z', 'INFO_BB!A2:Z']
 
         const params = new URLSearchParams()
@@ -67,6 +84,7 @@ export async function getProductInfo(produto) {
 
 export async function updateStorage(prod, deriv, qnt, tipo = 'tanque', valorAtualLocal = 0) {
     if (TEST_MODE) return valorAtualLocal + qnt
+    assertSpreadsheetId()
     const config = {
         tanque: { aba: 'INFO_TANQUES', coluna: 'E', colIndex: 4, match: (row) => row[0]?.toUpperCase() === prod.toUpperCase() && row[1]?.toUpperCase() === deriv.toUpperCase() },
         ibc: { aba: 'INFO_IBC', coluna: 'D', colIndex: 3, match: (row) => row[0]?.toUpperCase() === prod.toUpperCase() },

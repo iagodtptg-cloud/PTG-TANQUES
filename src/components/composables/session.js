@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 
 const TEST_MODE = import.meta.env.DEV
 const TOKEN_KEY = 'google_access_token'
-const CLIENT_ID = '193369999399-vkc96fqqphpsok7cg2vhcgsamepo8tpi.apps.googleusercontent.com'
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets'
 
 const accessToken = ref(TEST_MODE ? 'test-token' : localStorage.getItem(TOKEN_KEY) || null)
@@ -24,6 +24,11 @@ function clearToken() {
 
 function loadGis() {
   if (gisLoaded) return Promise.resolve()
+  if (!CLIENT_ID) {
+    return Promise.reject(
+      new Error('VITE_GOOGLE_CLIENT_ID não configurado. Defina no .env / Netlify Env.'),
+    )
+  }
   gisLoaded = true
   return new Promise((resolve) => {
     const script = document.createElement('script')
