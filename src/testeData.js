@@ -52,7 +52,7 @@ export const API_A2A = {
 
 
 export const INFOTANQUES = {
-  "spreadsheetId": "1oCjR7KnvsWDojsiaMS8ymtjGZlCdFk2CcURXUwz5MDQ",
+  "spreadsheetId": "MOCK_SPREADSHEET_ID",
   "valueRanges": [
     {
       "range": "INFO_TANQUES!A2:Z996",
