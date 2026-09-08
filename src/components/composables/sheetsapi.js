@@ -1,8 +1,27 @@
 import { useSession } from './session.js'
 
-const SPREADSHEET_ID = '1oCjR7KnvsWDojsiaMS8ymtjGZlCdFk2CcURXUwz5MDQ'
+const TEST_MODE = import.meta.env.DEV
+const SPREADSHEET_ID = import.meta.env.VITE_GOOGLE_SPREADSHEET_ID
+
+// Mock carregado dinamicamente só em dev — nunca entra no bundle de prod.
+async function loadMockData() {
+  return import('../../testeData.js')
+}
+
+function assertSpreadsheetId() {
+  if (!SPREADSHEET_ID) {
+    throw new Error('VITE_GOOGLE_SPREADSHEET_ID não configurado. Defina no .env / Netlify Env.')
+  }
+}
 
 export async function apiFetch(url, options = {}) {
+    if (TEST_MODE) {
+        const { API_A2A } = await loadMockData()
+        return new Response(JSON.stringify(API_A2A), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
     const { accessToken, silentRefresh } = useSession()
     const res = await fetch(url, {
         ...options,
@@ -19,6 +38,11 @@ export async function apiFetch(url, options = {}) {
 }
 
 export async function getProdutos() {
+    if (TEST_MODE) {
+        const { API_A2A } = await loadMockData()
+        return API_A2A
+    }
+    assertSpreadsheetId()
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/API!A2:A`
     const response = await apiFetch(url)
     if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao ler')
@@ -26,17 +50,25 @@ export async function getProdutos() {
 }
 
 export async function getProductInfo(produto) {
-    const abas = ['INFO_TANQUES!A2:Z', 'INFO_IBC!A2:Z', 'INFO_BB!A2:Z']
+    let data
 
-    const params = new URLSearchParams()
-    abas.forEach(aba => params.append('ranges', aba))
+    if (TEST_MODE) {
+        const { INFOTANQUES } = await loadMockData()
+        data = INFOTANQUES
+    } else {
+        assertSpreadsheetId()
+        const abas = ['INFO_TANQUES!A2:Z', 'INFO_IBC!A2:Z', 'INFO_BB!A2:Z']
 
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?${params.toString()}`
+        const params = new URLSearchParams()
+        abas.forEach(aba => params.append('ranges', aba))
 
-    const response = await apiFetch(url)
-    if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao ler abas')
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?${params.toString()}`
 
-    const data = await response.json()
+        const response = await apiFetch(url)
+        if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao ler abas')
+
+        data = await response.json()
+    }
 
     const resultados = {}
     data.valueRanges.forEach(item => {
@@ -50,7 +82,9 @@ export async function getProductInfo(produto) {
     return resultados
 }
 
-export async function updateStorage(prod, deriv, qnt, tipo = 'tanque') {
+export async function updateStorage(prod, deriv, qnt, tipo = 'tanque', valorAtualLocal = 0) {
+    if (TEST_MODE) return valorAtualLocal + qnt
+    assertSpreadsheetId()
     const config = {
         tanque: { aba: 'INFO_TANQUES', coluna: 'E', colIndex: 4, match: (row) => row[0]?.toUpperCase() === prod.toUpperCase() && row[1]?.toUpperCase() === deriv.toUpperCase() },
         ibc: { aba: 'INFO_IBC', coluna: 'D', colIndex: 3, match: (row) => row[0]?.toUpperCase() === prod.toUpperCase() },

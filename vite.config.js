@@ -7,11 +7,12 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
     vueJsx(),
-    vueDevTools(),
+    // DevTools só em dev — fora do bundle de produção/Netlify.
+    ...(mode === 'development' ? [vueDevTools()] : []),
     tailwindcss(),
   ],
   resolve: {
@@ -19,4 +20,4 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-})
+}))

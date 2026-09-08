@@ -1,10 +1,12 @@
+/* global google */
 import { ref, computed } from 'vue'
 
+const TEST_MODE = import.meta.env.DEV
 const TOKEN_KEY = 'google_access_token'
-const CLIENT_ID = '193369999399-vkc96fqqphpsok7cg2vhcgsamepo8tpi.apps.googleusercontent.com'
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets'
 
-const accessToken = ref(localStorage.getItem(TOKEN_KEY) || null)
+const accessToken = ref(TEST_MODE ? 'test-token' : localStorage.getItem(TOKEN_KEY) || null)
 const ready = ref(false)
 const initialized = ref(false)
 let tokenClient = null
@@ -22,6 +24,11 @@ function clearToken() {
 
 function loadGis() {
   if (gisLoaded) return Promise.resolve()
+  if (!CLIENT_ID) {
+    return Promise.reject(
+      new Error('VITE_GOOGLE_CLIENT_ID não configurado. Defina no .env / Netlify Env.'),
+    )
+  }
   gisLoaded = true
   return new Promise((resolve) => {
     const script = document.createElement('script')
@@ -42,6 +49,7 @@ function loadGis() {
 }
 
 function login() {
+  if (TEST_MODE) return Promise.resolve(accessToken.value)
   return new Promise((resolve, reject) => {
     if (!tokenClient) return reject(new Error('GIS not loaded'))
     tokenClient.callback = (response) => {
@@ -54,6 +62,7 @@ function login() {
 }
 
 function silentRefresh() {
+  if (TEST_MODE) return Promise.resolve(accessToken.value)
   return new Promise((resolve, reject) => {
     if (!tokenClient) return reject(new Error('GIS not loaded'))
     tokenClient.callback = (response) => {
@@ -69,6 +78,7 @@ function silentRefresh() {
 }
 
 async function ensureToken() {
+  if (TEST_MODE) return accessToken.value
   await loadGis()
   if (accessToken.value) return accessToken.value
   const saved = localStorage.getItem(TOKEN_KEY)
@@ -83,11 +93,17 @@ async function ensureToken() {
 }
 
 async function init() {
+  if (TEST_MODE) {
+    ready.value = true
+    initialized.value = true
+    return
+  }
   await loadGis()
   initialized.value = true
 }
 
 function logout() {
+  if (TEST_MODE) return
   if (accessToken.value) {
     google.accounts.oauth2.revoke(accessToken.value, () => {})
   }
