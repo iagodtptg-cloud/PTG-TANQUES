@@ -17,16 +17,21 @@
     </label>
 
     <div id="controls-input" class="flex flex-col items-center gap-6">
-      <input :value="quantidadeEmFoco
-          ? quantidadeInput
-          : formatarQuantidade(
-              normalizarQuantidade(quantidadeInput)
-            )
-        " type="text" inputmode="decimal"
-        class="w-110 px-4 py-3 rounded-lg text-center text-2xl border-none focus:outline-2" :style="{
-          background: theme.surfaceBg,
-          color: theme.textWhite
-        }" placeholder="0" @focus="quantidadeEmFoco = true" @input="aoDigitarQuantidade" @blur="aoSairQuantidade" />
+      <div class="flex items-center gap-2">
+        <input :value="quantidadeEmFoco
+            ? quantidadeInput
+            : formatarQuantidade(
+                normalizarQuantidade(quantidadeInput)
+              )
+          " type="text" inputmode="decimal"
+          class="w-110 px-4 py-3 rounded-lg text-center text-2xl border-none focus:outline-2" :style="{
+            background: theme.surfaceBg,
+            color: theme.textWhite
+          }" placeholder="0" @focus="quantidadeEmFoco = true" @input="aoDigitarQuantidade" @blur="aoSairQuantidade" />
+        <span class="text-2xl font-bold" :style="{ color: theme.textWhite, minWidth: '35px' }">
+          {{ unidadeAtual }}
+        </span>
+      </div>
 
       <div class="flex gap-20">
         <button class="px-6 py-3 w-45 rounded-lg text-white font-medium transition-colors"
@@ -80,9 +85,17 @@ const {
 const capacidadeMaxima = computed(() => {
   if (containerSelecionado.value?.tipo === 'tanque' && tanqueSelecionado.value) {
     const tanque = tanques.value.find(t => t.id === tanqueSelecionado.value)
-    return tanque?.capacidade || 0
+    return tanque?.capacidadeReal || 0
   }
   return 0
+})
+
+const unidadeAtual = computed(() => {
+  if (containerSelecionado.value?.tipo === 'tanque' && tanqueSelecionado.value) {
+    const tanque = tanques.value.find(t => t.id === tanqueSelecionado.value)
+    return tanque?.isInox ? 'CM' : 'L'
+  }
+  return 'L'
 })
 
 const aoDigitarQuantidade = (event) => formatarDuranteDigitacao(event, quantidadeInput, capacidadeMaxima.value)

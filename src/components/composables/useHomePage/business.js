@@ -34,20 +34,28 @@ export function createBusinessLogic(estado, api) {
         const tanque = tanques.value.find(tanque => tanque.id === tanqueSelecionado.value)
         if (!tanque) return
 
-        let litros = qnt
-        if (tanque.isInox) {
-          if (!tanque.txCnv) {
-            showAlert('Tanque inox sem taxa de conversão configurada')
-            return
-          }
-          litros = Math.trunc((qnt * tanque.capacidade) / tanque.txCnv)
-        }
+         let litros = qnt
+         if (tanque.isInox) {
+           if (!tanque.txCnv) {
+             showAlert('Tanque inox sem taxa de conversão configurada')
+             return
+           }
+           if (qnt > tanque.txCnv) {
+             showAlert(`Excede capacidade. Disponível: ${tanque.capacidade}L`)
+             return
+           }
+           if (qnt === tanque.txCnv) {
+             litros = tanque.capacidade
+           } else {
+             litros = Math.trunc((qnt * tanque.capacidade) / tanque.txCnv)
+           }
+         }
 
-        if (tanque.atual + litros > tanque.capacidade) {
-          const disponivel = tanque.capacidade - tanque.atual
-          showAlert(`Excede capacidade. Disponível: ${disponivel}L`)
-          return
-        }
+         if (tanque.atual + litros > tanque.capacidadeReal) {
+           const disponivel = tanque.capacidadeReal - tanque.atual
+           showAlert(`Excede capacidade. Disponível: ${disponivel}L`)
+           return
+         }
         const novoValor = await updateStorage(produto.nome, tanque.nome, litros, 'tanque', tanque.atual)
         tanque.atual = novoValor
       } else if (containerSelecionado.value.tipo === 'ibc') {

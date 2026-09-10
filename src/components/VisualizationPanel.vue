@@ -42,7 +42,7 @@
                   tanque => tanque.id === tanqueSelecionado
                 )?.capacidade
               )
-            }}L
+            }}L{{ tanques.find(tanque => tanque.id === tanqueSelecionado)?.isInox ? ` (${tanques.find(tanque => tanque.id === tanqueSelecionado)?.txCnv}cm)` : '' }}
           </span>
         </div>
       </div>

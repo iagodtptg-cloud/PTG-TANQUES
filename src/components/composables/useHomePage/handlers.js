@@ -18,24 +18,32 @@ export function createHandlers(estado, api) {
     if (!produto) return
 
     try {
-      const data = await getProductInfo(produto.nome)
-      tanques.value = (data.INFO_TANQUES || []).map((row, index) => ({
-        id: index + 1,
-        nome: row[1],
-        capacidade: parseFloat(row[2]) || 0,
-        atual: parseFloat(row[4]) || 0,
-        isInox: row[5]?.toString().toUpperCase() === 'TRUE',
-        txCnv: parseFloat(row[6]) || 0
-      }))
-      infoIBC.value = data.INFO_IBC || null
-      infoBB.value = data.INFO_BB || null
-    } catch (error) {
-      console.error('Erro ao carregar tanques:', error)
-      tanques.value = []
-      infoIBC.value = null
-      infoBB.value = null
-      showAlert('Erro ao carregar dados do produto')
-    }
+       const data = await getProductInfo(produto.nome)
+       tanques.value = (data.INFO_TANQUES || []).map((row, index) => {
+         const capacidade = parseFloat(row[2]) || 0
+         const isInox = row[5]?.toString().toUpperCase() === 'TRUE'
+         const txCnv = parseFloat(row[6]) || 0
+         const capacidadeReal = isInox && txCnv ? txCnv * capacidade : capacidade
+         
+         return {
+           id: index + 1,
+           nome: row[1],
+           capacidade: capacidade,
+           capacidadeReal: capacidadeReal,
+           atual: parseFloat(row[4]) || 0,
+           isInox: isInox,
+           txCnv: txCnv
+         }
+       })
+       infoIBC.value = data.INFO_IBC || null
+       infoBB.value = data.INFO_BB || null
+     } catch (error) {
+       console.error('Erro ao carregar tanques:', error)
+       tanques.value = []
+       infoIBC.value = null
+       infoBB.value = null
+       showAlert('Erro ao carregar dados do produto')
+     }
   }
 
   function limparProduto() {
