@@ -3,9 +3,9 @@ import { createEstado, MAX_QUADRADINHOS } from './estado.js'
 import { createComputeds } from './computeds.js'
 import { createHandlers } from './handlers.js'
 import { createBusinessLogic } from './business.js'
-import { getProductInfo, getProdutos, updateStorage } from '../sheetsapi.js'
+import { getProductInfo, getProdutos, updateStorage, updateVariacoes } from '../sheetsapi.js'
 
-const api = { getProductInfo, getProdutos, updateStorage }
+const api = { getProductInfo, getProdutos, updateStorage, updateVariacoes }
 
 const estado = createEstado()
 const computeds = createComputeds(estado)
