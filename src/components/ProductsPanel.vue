@@ -105,7 +105,7 @@
           }" @mouseenter="hoveredTanque = tanque.id" @mouseleave="hoveredTanque = null"
           @click="selecionarTanqueGrid(tanque.id)">
           <TanqueIcon :size="65" :fillPercent="(tanque.atual / tanque.capacidade) * 100
-            " :color="theme.liquidFill" />
+            " :color="tanque.variacoes?.[tanque.variacaoSelecionada]?.cor || theme.liquidFill" />
 
           <span class="text-xs text-center font-medium" :style="{ color: theme.textPrimary }">
             {{ tanque.nome }}

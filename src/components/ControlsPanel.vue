@@ -14,9 +14,12 @@
 
     <label class="text-2xl font-bold italic mt-4 text-center" :style="{ color: theme.textWhite }">
       {{ tituloControles }}
+      <span v-if="temVariacoes && tanqueSelecionadoObj?.variacoes?.[variacaoSelecionadaLocal]?.nome" class="ml-2 text-lg" :style="{ color: tanqueSelecionadoObj?.variacoes?.[variacaoSelecionadaLocal]?.cor }">
+        ({{ tanqueSelecionadoObj?.variacoes?.[variacaoSelecionadaLocal]?.nome }})
+      </span>
     </label>
 
-    <div id="controls-input" class="flex flex-col items-center gap-6">
+    <div id="controls-input" class="flex flex-col items-center gap-6 w-full">
       <div class="flex items-center gap-2">
         <input :value="quantidadeEmFoco
             ? quantidadeInput
@@ -56,6 +59,42 @@
           Saída
         </button>
       </div>
+
+      <div v-if="temVariacoes" class="w-full flex flex-col gap-2">
+        <button class="w-full px-4 py-2 rounded-lg text-white font-medium transition-colors text-sm"
+          :style="{ background: theme.surfaceAlt }"
+          @click="abrirConfigVariacao">
+          {{ configVariacaoAberta ? '▼ Configurar Variações' : '▶ Configurar Variações' }}
+        </button>
+
+        <div v-if="configVariacaoAberta" class="w-full p-4 rounded-lg flex flex-col gap-3"
+          :style="{ background: theme.surfaceAlt }">
+          <div v-for="(variacao, idx) in tanqueSelecionadoObj?.variacoes" :key="idx" class="flex gap-2 items-center">
+            <input type="checkbox" 
+              :checked="tanqueSelecionadoObj.variacaoSelecionada === idx"
+              @change="tanqueSelecionadoObj.variacaoSelecionada = idx"
+              class="w-4 h-4 cursor-pointer" />
+            <input v-model="tanqueSelecionadoObj.variacoes[idx].nome" type="text" 
+              class="flex-1 px-3 py-2 rounded-lg text-sm"
+              :style="{
+                background: theme.surfaceBg,
+                color: theme.textWhite,
+                border: `1px solid ${theme.borderColor}`
+              }" 
+              placeholder="Variação..." />
+            <input v-model="tanqueSelecionadoObj.variacoes[idx].cor" type="color" 
+              class="w-10 h-8 rounded-lg cursor-pointer" />
+          </div>
+
+          <div class="flex gap-2 mt-2">
+            <button class="flex-1 px-3 py-2 rounded-lg text-white font-medium transition-colors text-sm"
+              :style="{ background: theme.btnSuccess }"
+              @click="fecharConfigVariacao">
+              Salvar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="h-8"></div>
@@ -79,7 +118,9 @@ const {
   containerSelecionado,
   tituloControles,
   entrada,
-  saida
+  saida,
+  configVariacaoAberta,
+  salvarVariacoes
 } = useHomePage()
 
 const capacidadeMaxima = computed(() => {
@@ -97,6 +138,27 @@ const unidadeAtual = computed(() => {
   }
   return 'L'
 })
+
+const tanqueSelecionadoObj = computed(() => {
+  return tanques.value.find(t => t.id === tanqueSelecionado.value)
+})
+
+const variacaoSelecionadaLocal = computed(() => {
+  return tanqueSelecionadoObj.value?.variacaoSelecionada ?? 0
+})
+
+const temVariacoes = computed(() => {
+  return tanqueSelecionadoObj.value?.variacoes?.length > 0
+})
+
+function abrirConfigVariacao() {
+  configVariacaoAberta.value = !configVariacaoAberta.value
+}
+
+function fecharConfigVariacao() {
+  configVariacaoAberta.value = false
+  salvarVariacoes()
+}
 
 const aoDigitarQuantidade = (event) => formatarDuranteDigitacao(event, quantidadeInput, capacidadeMaxima.value)
 const aoSairQuantidade = () => {

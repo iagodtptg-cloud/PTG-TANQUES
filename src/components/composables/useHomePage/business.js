@@ -2,7 +2,7 @@ import { normalizarQuantidade } from './formatacao'
 
 export function createBusinessLogic(estado, api) {
   const { produtos, tanques, infoIBC, infoBB, containerSelecionado, tanqueSelecionado, quantidadeInput, selecionado, showAlert } = estado
-  const { getProdutos, updateStorage } = api
+  const { getProdutos, updateStorage, updateVariacoes } = api
 
   async function carregarProdutos() {
     try {
@@ -120,13 +120,36 @@ export function createBusinessLogic(estado, api) {
         bb[3] = novoValor
       }
 
-      quantidadeInput.value = ''
-      showAlert('Saída registrada com sucesso', 'success')
-    } catch (error) {
-      console.error('Erro ao registrar saída:', error)
-      showAlert('Erro ao registrar saída')
-    }
-  }
+       quantidadeInput.value = ''
+       showAlert('Saída registrada com sucesso', 'success')
+     } catch (error) {
+       console.error('Erro ao registrar saída:', error)
+       showAlert('Erro ao registrar saída')
+     }
+   }
 
-  return { carregarProdutos, entrada, saida }
-}
+   async function salvarVariacoes() {
+     try {
+       if (containerSelecionado.value?.tipo !== 'tanque' || !tanqueSelecionado.value) {
+         showAlert('Selecione um tanque')
+         return
+       }
+
+       const tanque = tanques.value.find(t => t.id === tanqueSelecionado.value)
+       const produto = produtos.value.find(p => p.id === selecionado.value)
+
+       if (!tanque || !produto) {
+         showAlert('Tanque ou produto não encontrado')
+         return
+       }
+
+       await updateVariacoes(produto.nome, tanque.nome, tanque.variacoes, tanque.variacaoSelecionada)
+       showAlert('Variações salvas com sucesso', 'success')
+     } catch (error) {
+       console.error('Erro ao salvar variações:', error)
+       showAlert('Erro ao salvar variações')
+     }
+   }
+
+   return { carregarProdutos, entrada, saida, salvarVariacoes }
+ }

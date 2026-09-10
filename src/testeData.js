@@ -59,77 +59,101 @@ export const INFOTANQUES = {
       "majorDimension": "ROWS",
       "values": [
         [
-          "HIDROXIDO DE SODIO",
-          "01",
-          "15600",
-          "TQ_SODA",
-          "0",
-          "TRUE",
-          "125"
-        ],
-        [
-          "HIDROXIDO DE SODIO",
-          "02",
-          "15600",
-          "TQ_SODA",
-          "0",
-          "TRUE",
-          "125"
-        ],
-        [
-          "HIDROXIDO DE SODIO",
-          "03",
-          "19200",
-          "TQ_SODA",
-          "0",
-          "TRUE",
-          "130"
-        ],
-        [
-          "HIDROXIDO DE SODIO",
-          "04",
-          "19200",
-          "TQ_SODA",
-          "0",
-          "TRUE",
-          "133"
-        ],
-        [
-          "HIDROXIDO DE SODIO",
-          "05",
-          "18200",
-          "TQ_SODA",
-          "0",
-          "TRUE",
-          "134"
-        ],
-        [
-          "HIDROXIDO DE SODIO",
-          "06",
-          "21200",
-          "TQ_SODA",
-          "0",
-          "TRUE",
-          "148"
-        ],
-        [
-          "ACIDO CITRICO SOLUCAO",
-          "07",
-          "19200",
-          "TQ_CT_S",
-          "0",
-          "TRUE",
-          "137"
-        ],
-        [
-          "HIDROXIDO DE SODIO",
-          "08",
-          "19200",
-          "TQ_SODA",
-          "0",
-          "TRUE",
-          "134"
-        ],
+           "HIDROXIDO DE SODIO",
+           "01",
+           "15600",
+           "TQ_SODA",
+           "0",
+           "TRUE",
+           "125",
+           "Premium_FF6B6B",
+           "Standard_4A90E2",
+           "Eco_2ECC71"
+         ],
+         [
+           "HIDROXIDO DE SODIO",
+           "02",
+           "15600",
+           "TQ_SODA",
+           "0",
+           "TRUE",
+           "125",
+           "Premium_FF6B6B",
+           "Standard_4A90E2",
+           ""
+         ],
+         [
+           "HIDROXIDO DE SODIO",
+           "03",
+           "19200",
+           "TQ_SODA",
+           "0",
+           "TRUE",
+           "130",
+           "Standard_4A90E2",
+           "Eco_2ECC71",
+           ""
+         ],
+         [
+           "HIDROXIDO DE SODIO",
+           "04",
+           "19200",
+           "TQ_SODA",
+           "0",
+           "TRUE",
+           "133",
+           "Premium_FF6B6B",
+           "",
+           ""
+         ],
+         [
+           "HIDROXIDO DE SODIO",
+           "05",
+           "18200",
+           "TQ_SODA",
+           "0",
+           "TRUE",
+           "134",
+           "Standard_4A90E2",
+           "Premium_FF6B6B",
+           "Eco_2ECC71"
+         ],
+         [
+           "HIDROXIDO DE SODIO",
+           "06",
+           "21200",
+           "TQ_SODA",
+           "0",
+           "TRUE",
+           "148",
+           "Eco_2ECC71",
+           "",
+           ""
+         ],
+         [
+           "ACIDO CITRICO SOLUCAO",
+           "07",
+           "19200",
+           "TQ_CT_S",
+           "0",
+           "TRUE",
+           "137",
+           "Premium_FF6B6B",
+           "Standard_4A90E2",
+           ""
+         ],
+         [
+           "HIDROXIDO DE SODIO",
+           "08",
+           "19200",
+           "TQ_SODA",
+           "0",
+           "TRUE",
+           "134",
+           "Standard_4A90E2",
+           "",
+           ""
+         ],
         [
           "HIDROXIDO DE SODIO",
           "09",

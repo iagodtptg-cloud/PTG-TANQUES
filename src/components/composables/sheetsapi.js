@@ -122,6 +122,37 @@ export async function updateStorage(prod, deriv, qnt, tipo = 'tanque', valorAtua
     return novoValor
 }
 
+export async function updateVariacoes(prod, deriv, variacoes, variacaoSelecionada) {
+    if (TEST_MODE) return
+    assertSpreadsheetId()
+    
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/INFO_TANQUES!A2:Z`
+    const response = await apiFetch(url)
+    if (!response.ok) throw new Error((await response.json()).error?.message || 'Erro ao ler planilha')
+
+    const data = await response.json()
+    const rows = data.values || []
+
+    const rowIndex = rows.findIndex(row => 
+        row[0]?.toUpperCase() === prod.toUpperCase() && 
+        row[1]?.toUpperCase() === deriv.toUpperCase()
+    )
+    if (rowIndex === -1) throw new Error('Registro não encontrado')
+
+    const variacaoValues = variacoes.map(v => 
+        v.nome ? `${v.nome}_${v.cor.replace('#', '')}` : ''
+    )
+
+    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/INFO_TANQUES!H${rowIndex + 2}:K${rowIndex + 2}?valueInputOption=USER_ENTERED`
+    const updateResponse = await apiFetch(updateUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[...variacaoValues, variacaoSelecionada]] })
+    })
+
+    if (!updateResponse.ok) throw new Error((await updateResponse.json()).error?.message || 'Erro ao atualizar variações')
+}
+
 async function registerMovement(prod, deriv, qnt, tipo) {
     const now = new Date()
     const dataHora = `${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR')}`

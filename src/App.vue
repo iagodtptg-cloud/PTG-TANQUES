@@ -2,7 +2,6 @@
 import { onMounted } from 'vue'
 import { useSession } from './components/composables/session.js'
 import LoginPage from './components/LoginPage.vue'
-import HomePage from './components/HomePage.vue'
 
 const { hasSession, initialized, init } = useSession()
 
@@ -17,7 +16,7 @@ onMounted(async () => {
       <div class="loading-spinner"></div>
     </div>
     <LoginPage v-else-if="!hasSession" />
-    <HomePage v-else />
+    <RouterView v-else />
   </div>
 </template>
 

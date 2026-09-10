@@ -6,45 +6,64 @@ export function createHandlers(estado, api) {
     dropdownOpen.value = !dropdownOpen.value
   }
 
-  async function selecionarTanque(id) {
-    selecionado.value = id
-    tanqueSelecionado.value = null
-    containerSelecionado.value = null
-    dropdownOpen.value = false
-    busca.value = ''
-    quantidadeInput.value = ''
+   async function selecionarTanque(id) {
+     selecionado.value = id
+     tanqueSelecionado.value = null
+     containerSelecionado.value = null
+     dropdownOpen.value = false
+     busca.value = ''
+     quantidadeInput.value = ''
 
-    const produto = produtos.value.find(produto => produto.id === id)
-    if (!produto) return
+     const produto = produtos.value.find(produto => produto.id === id)
+     if (!produto) return
 
-    try {
-       const data = await getProductInfo(produto.nome)
-       tanques.value = (data.INFO_TANQUES || []).map((row, index) => {
-         const capacidade = parseFloat(row[2]) || 0
-         const isInox = row[5]?.toString().toUpperCase() === 'TRUE'
-         const txCnv = parseFloat(row[6]) || 0
-         const capacidadeReal = isInox && txCnv ? txCnv * capacidade : capacidade
-         
-         return {
-           id: index + 1,
-           nome: row[1],
-           capacidade: capacidade,
-           capacidadeReal: capacidadeReal,
-           atual: parseFloat(row[4]) || 0,
-           isInox: isInox,
-           txCnv: txCnv
-         }
-       })
-       infoIBC.value = data.INFO_IBC || null
-       infoBB.value = data.INFO_BB || null
-     } catch (error) {
-       console.error('Erro ao carregar tanques:', error)
-       tanques.value = []
-       infoIBC.value = null
-       infoBB.value = null
-       showAlert('Erro ao carregar dados do produto')
-     }
-  }
+     try {
+        const data = await getProductInfo(produto.nome)
+        tanques.value = (data.INFO_TANQUES || []).map((row, index) => {
+          const capacidade = parseFloat(row[2]) || 0
+          const isInox = row[5]?.toString().toUpperCase() === 'TRUE'
+          const txCnv = parseFloat(row[6]) || 0
+          const capacidadeReal = isInox && txCnv ? txCnv * capacidade : capacidade
+          
+          const variacoes = [
+            { nome: '', cor: '#22c3dc' },
+            { nome: '', cor: '#22c3dc' },
+            { nome: '', cor: '#22c3dc' }
+          ]
+          
+          for (let i = 7; i <= 9; i++) {
+            const variacaoRaw = row[i]?.toString().trim()
+            if (variacaoRaw && variacaoRaw.includes('_')) {
+              const [nome, cor] = variacaoRaw.split('_')
+              variacoes[i - 7] = { nome, cor: `#${cor}` }
+            }
+          }
+          
+          const variacaoSelecionada = parseInt(row[10]) || 0
+          
+          return {
+            id: index + 1,
+            nome: row[1],
+            capacidade: capacidade,
+            capacidadeReal: capacidadeReal,
+            atual: parseFloat(row[4]) || 0,
+            isInox: isInox,
+            txCnv: txCnv,
+            variacoes: variacoes,
+            variacaoSelecionada: Math.min(variacaoSelecionada, 2),
+            produto: row[0]
+          }
+        })
+        infoIBC.value = data.INFO_IBC || null
+        infoBB.value = data.INFO_BB || null
+      } catch (error) {
+        console.error('Erro ao carregar tanques:', error)
+        tanques.value = []
+        infoIBC.value = null
+        infoBB.value = null
+        showAlert('Erro ao carregar dados do produto')
+      }
+   }
 
   function limparProduto() {
     selecionado.value = null
