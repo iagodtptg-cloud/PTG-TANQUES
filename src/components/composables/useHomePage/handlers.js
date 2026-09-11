@@ -1,3 +1,5 @@
+import { parseTankRow } from '../sheetsapi.js'
+
 export function createHandlers(estado, api) {
   const { produtos, tanques, tanqueSelecionado, infoIBC, infoBB, containerSelecionado, busca, selecionado, dropdownOpen, dropdownRef, quantidadeInput, showAlert } = estado
   const { getProductInfo } = api
@@ -17,41 +19,24 @@ export function createHandlers(estado, api) {
      const produto = produtos.value.find(produto => produto.id === id)
      if (!produto) return
 
-     try {
+      try {
         const data = await getProductInfo(produto.nome)
         tanques.value = (data.INFO_TANQUES || []).map((row, index) => {
-          const capacidade = parseFloat(row[2]) || 0
-          const isInox = row[5]?.toString().toUpperCase() === 'TRUE'
-          const txCnv = parseFloat(row[6]) || 0
-          const capacidadeReal = isInox && txCnv ? txCnv * capacidade : capacidade
-          
-          const variacoes = [
-            { nome: '', cor: '#22c3dc' },
-            { nome: '', cor: '#22c3dc' },
-            { nome: '', cor: '#22c3dc' }
-          ]
-          
-          for (let i = 7; i <= 9; i++) {
-            const variacaoRaw = row[i]?.toString().trim()
-            if (variacaoRaw && variacaoRaw.includes('_')) {
-              const [nome, cor] = variacaoRaw.split('_')
-              variacoes[i - 7] = { nome, cor: `#${cor}` }
-            }
-          }
-          
-          const variacaoSelecionada = parseInt(row[10]) || 0
-          
+          const t = parseTankRow(row, index)
           return {
             id: index + 1,
-            nome: row[1],
-            capacidade: capacidade,
-            capacidadeReal: capacidadeReal,
-            atual: parseFloat(row[4]) || 0,
-            isInox: isInox,
-            txCnv: txCnv,
-            variacoes: variacoes,
-            variacaoSelecionada: Math.min(variacaoSelecionada, 2),
-            produto: row[0]
+            num: t.num,
+            capacity: t.capacity,
+            realCapacity: t.realCapacity,
+            qty: t.qty,
+            isInox: t.isInox,
+            txCnv: t.txCnv,
+            variations: t.variations,
+            selectedVariation: t.selectedVariation,
+            active: t.active,
+            product: t.product,
+            type: t.type,
+            storageType: t.storageType
           }
         })
         infoIBC.value = data.INFO_IBC || null

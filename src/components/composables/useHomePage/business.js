@@ -41,23 +41,23 @@ export function createBusinessLogic(estado, api) {
              return
            }
            if (qnt > tanque.txCnv) {
-             showAlert(`Excede capacidade. Disponível: ${tanque.capacidade}L`)
+             showAlert(`Excede capacidade. Disponível: ${tanque.capacity}L`)
              return
            }
            if (qnt === tanque.txCnv) {
-             litros = tanque.capacidade
+             litros = tanque.capacity
            } else {
-             litros = Math.trunc((qnt * tanque.capacidade) / tanque.txCnv)
+             litros = Math.trunc((qnt * tanque.capacity) / tanque.txCnv)
            }
          }
 
-         if (tanque.atual + litros > tanque.capacidadeReal) {
-           const disponivel = tanque.capacidadeReal - tanque.atual
+         if (tanque.qty + litros > tanque.realCapacity) {
+           const disponivel = tanque.realCapacity - tanque.qty
            showAlert(`Excede capacidade. Disponível: ${disponivel}L`)
            return
          }
-        const novoValor = await updateStorage(produto.nome, tanque.nome, litros, 'tanque', tanque.atual)
-        tanque.atual = novoValor
+        const novoValor = await updateStorage(produto.nome, tanque.num, litros, 'tanque', tanque.qty)
+        tanque.qty = novoValor
       } else if (containerSelecionado.value.tipo === 'ibc') {
         if (!infoIBC.value?.[0]) return
         const novoValor = await updateStorage(produto.nome, null, qnt, 'ibc', infoIBC.value[0][3])
@@ -93,12 +93,12 @@ export function createBusinessLogic(estado, api) {
       if (containerSelecionado.value.tipo === 'tanque' && tanqueSelecionado.value) {
         const tanque = tanques.value.find(tanque => tanque.id === tanqueSelecionado.value)
         if (!tanque) return
-        if (qnt > tanque.atual) {
-          showAlert(`Excede disponível. Atual: ${tanque.atual}L`)
+        if (qnt > tanque.qty) {
+          showAlert(`Excede disponível. Atual: ${tanque.qty}L`)
           return
         }
-        const novoValor = await updateStorage(produto.nome, tanque.nome, -qnt, 'tanque', tanque.atual)
-        tanque.atual = novoValor
+        const novoValor = await updateStorage(produto.nome, tanque.num, -qnt, 'tanque', tanque.qty)
+        tanque.qty = novoValor
       } else if (containerSelecionado.value.tipo === 'ibc') {
         if (!infoIBC.value?.[0]) return
         const atual = parseFloat(infoIBC.value[0][3]) || 0
@@ -143,7 +143,7 @@ export function createBusinessLogic(estado, api) {
          return
        }
 
-       await updateVariacoes(produto.nome, tanque.nome, tanque.variacoes, tanque.variacaoSelecionada)
+        await updateVariacoes(produto.nome, tanque.num, tanque.variations, tanque.selectedVariation)
        showAlert('Variações salvas com sucesso', 'success')
      } catch (error) {
        console.error('Erro ao salvar variações:', error)

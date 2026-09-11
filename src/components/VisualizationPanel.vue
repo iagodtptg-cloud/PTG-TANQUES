@@ -10,17 +10,17 @@
           {{
             tanques.find(
               tanque => tanque.id === tanqueSelecionado
-            )?.nome
+            )?.num
           }}
         </span>
-        <span v-if="tanqueSelecionadoObj?.variacoes?.length > 0"
+        <span v-if="tanqueSelecionadoObj?.variations?.length > 0"
           class="text-sm font-medium px-3 py-1 rounded-full"
           :style="{ 
-            background: tanqueSelecionadoObj.variacoes[tanqueSelecionadoObj.variacaoSelecionada]?.cor,
+            background: tanqueSelecionadoObj.variations[tanqueSelecionadoObj.selectedVariation]?.cor,
             color: '#fff',
             opacity: 0.8
           }">
-          {{ tanqueSelecionadoObj.variacoes[tanqueSelecionadoObj.variacaoSelecionada]?.nome }}
+          {{ tanqueSelecionadoObj.variations[tanqueSelecionadoObj.selectedVariation]?.nome }}
         </span>
       </div>
 
@@ -28,10 +28,10 @@
         <TanqueIcon :size="210" :fillPercent="(
             tanques.find(
               tanque => tanque.id === tanqueSelecionado
-            )?.atual /
+            )?.qty /
             tanques.find(
               tanque => tanque.id === tanqueSelecionado
-            )?.capacidade
+            )?.capacity
           ) * 100
           " :color="corFillAtual" />
 
@@ -41,7 +41,7 @@
               formatarQuantidade(
                 tanques.find(
                   tanque => tanque.id === tanqueSelecionado
-                )?.atual
+                )?.qty
               )
             }}L
           </span>
@@ -51,7 +51,7 @@
               formatarQuantidade(
                 tanques.find(
                   tanque => tanque.id === tanqueSelecionado
-                )?.capacidade
+                )?.capacity
               )
             }}L{{ tanques.find(tanque => tanque.id === tanqueSelecionado)?.isInox ? ` (${tanques.find(tanque => tanque.id === tanqueSelecionado)?.txCnv}cm)` : '' }}
           </span>
@@ -169,8 +169,8 @@ const tanqueSelecionadoObj = computed(() => {
 
 const corFillAtual = computed(() => {
   const tanque = tanqueSelecionadoObj.value
-  if (tanque?.variacoes?.length > 0) {
-    return tanque.variacoes[tanque.variacaoSelecionada]?.cor || theme.liquidFill
+  if (tanque?.variations?.length > 0) {
+    return tanque.variations[tanque.selectedVariation]?.cor || theme.liquidFill
   }
   return theme.liquidFill
 })

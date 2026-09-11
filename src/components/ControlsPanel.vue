@@ -14,8 +14,8 @@
 
     <label class="text-2xl font-bold italic mt-4 text-center" :style="{ color: theme.textWhite }">
       {{ tituloControles }}
-      <span v-if="temVariacoes && tanqueSelecionadoObj?.variacoes?.[variacaoSelecionadaLocal]?.nome" class="ml-2 text-lg" :style="{ color: tanqueSelecionadoObj?.variacoes?.[variacaoSelecionadaLocal]?.cor }">
-        ({{ tanqueSelecionadoObj?.variacoes?.[variacaoSelecionadaLocal]?.nome }})
+      <span v-if="temVariacoes && tanqueSelecionadoObj?.variations?.[selectedVariationLocal]?.nome" class="ml-2 text-lg" :style="{ color: tanqueSelecionadoObj?.variations?.[selectedVariationLocal]?.cor }">
+        ({{ tanqueSelecionadoObj?.variations?.[selectedVariationLocal]?.nome }})
       </span>
     </label>
 
@@ -69,12 +69,12 @@
 
         <div v-if="configVariacaoAberta" class="w-full p-4 rounded-lg flex flex-col gap-3"
           :style="{ background: theme.surfaceAlt }">
-          <div v-for="(variacao, idx) in tanqueSelecionadoObj?.variacoes" :key="idx" class="flex gap-2 items-center">
+          <div v-for="(variacao, idx) in tanqueSelecionadoObj?.variations" :key="idx" class="flex gap-2 items-center">
             <input type="checkbox" 
-              :checked="tanqueSelecionadoObj.variacaoSelecionada === idx"
-              @change="tanqueSelecionadoObj.variacaoSelecionada = idx"
+              :checked="tanqueSelecionadoObj.selectedVariation === idx"
+              @change="tanqueSelecionadoObj.selectedVariation = idx"
               class="w-4 h-4 cursor-pointer" />
-            <input v-model="tanqueSelecionadoObj.variacoes[idx].nome" type="text" 
+            <input v-model="tanqueSelecionadoObj.variations[idx].nome" type="text" 
               class="flex-1 px-3 py-2 rounded-lg text-sm"
               :style="{
                 background: theme.surfaceBg,
@@ -82,7 +82,7 @@
                 border: `1px solid ${theme.borderColor}`
               }" 
               placeholder="Variação..." />
-            <input v-model="tanqueSelecionadoObj.variacoes[idx].cor" type="color" 
+            <input v-model="tanqueSelecionadoObj.variations[idx].cor" type="color" 
               class="w-10 h-8 rounded-lg cursor-pointer" />
           </div>
 
@@ -126,7 +126,7 @@ const {
 const capacidadeMaxima = computed(() => {
   if (containerSelecionado.value?.tipo === 'tanque' && tanqueSelecionado.value) {
     const tanque = tanques.value.find(t => t.id === tanqueSelecionado.value)
-    return tanque?.capacidadeReal || 0
+    return tanque?.realCapacity || 0
   }
   return 0
 })
@@ -143,12 +143,12 @@ const tanqueSelecionadoObj = computed(() => {
   return tanques.value.find(t => t.id === tanqueSelecionado.value)
 })
 
-const variacaoSelecionadaLocal = computed(() => {
-  return tanqueSelecionadoObj.value?.variacaoSelecionada ?? 0
+const selectedVariationLocal = computed(() => {
+  return tanqueSelecionadoObj.value?.selectedVariation ?? 0
 })
 
 const temVariacoes = computed(() => {
-  return tanqueSelecionadoObj.value?.variacoes?.length > 0
+  return tanqueSelecionadoObj.value?.variations?.length > 0
 })
 
 function abrirConfigVariacao() {
