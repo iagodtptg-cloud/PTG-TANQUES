@@ -4,3 +4,10 @@
 
 [build.environment]
   NODE_VERSION = "26"
+
+# SPA fallback: Vue Router (createWebHistory) precisa que todas as rotas
+# sirvam o index.html, senão /dash, /home etc. dão 404 no acesso direto/refresh
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
