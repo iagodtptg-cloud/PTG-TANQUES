@@ -104,20 +104,20 @@
                 : theme.surfaceAlt
           }" @mouseenter="hoveredTanque = tanque.id" @mouseleave="hoveredTanque = null"
           @click="selecionarTanqueGrid(tanque.id)">
-          <TanqueIcon :size="65" :fillPercent="(tanque.atual / tanque.capacidade) * 100
-            " :color="theme.liquidFill" />
+          <TanqueIcon :size="65" :fillPercent="(tanque.qty / tanque.capacity) * 100
+            " :color="tanque.variations?.[tanque.selectedVariation]?.cor || theme.liquidFill" />
 
           <span class="text-xs text-center font-medium" :style="{ color: theme.textPrimary }">
-            {{ tanque.nome }}
+            {{ tanque.num }}
           </span>
 
           <div class="flex flex-col text-xs text-center">
             <span class="font-bold" :style="{ color: theme.textPrimary }">
-              {{ formatarQuantidade(tanque.atual) }}L
+              {{ formatarQuantidade(tanque.qty) }}L
             </span>
 
             <span :style="{ color: theme.textMuted }">
-              /{{ formatarQuantidade(tanque.capacidade) }}L
+              /{{ formatarQuantidade(tanque.capacity) }}L
             </span>
           </div>
         </div>

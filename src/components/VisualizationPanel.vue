@@ -1,28 +1,39 @@
 <template>
   <div id="view" class="flex-1 p-6 rounded-2xl flex flex-col items-center justify-center"
     :style="{ background: theme.panelBg }">
-    <div v-if="
+      <div v-if="
       containerSelecionado?.tipo === 'tanque' &&
       tanqueSelecionado
     " class="flex flex-col items-center gap-4">
-      <span class="text-2xl font-bold" :style="{ color: theme.textPrimary }">
-        {{
-          tanques.find(
-            tanque => tanque.id === tanqueSelecionado
-          )?.nome
-        }}
-      </span>
+      <div class="flex items-center gap-3">
+        <span class="text-2xl font-bold" :style="{ color: theme.textPrimary }">
+          {{
+            tanques.find(
+              tanque => tanque.id === tanqueSelecionado
+            )?.num
+          }}
+        </span>
+        <span v-if="tanqueSelecionadoObj?.variations?.length > 0"
+          class="text-sm font-medium px-3 py-1 rounded-full"
+          :style="{ 
+            background: tanqueSelecionadoObj.variations[tanqueSelecionadoObj.selectedVariation]?.cor,
+            color: '#fff',
+            opacity: 0.8
+          }">
+          {{ tanqueSelecionadoObj.variations[tanqueSelecionadoObj.selectedVariation]?.nome }}
+        </span>
+      </div>
 
       <div class="flex items-center gap-6">
         <TanqueIcon :size="210" :fillPercent="(
             tanques.find(
               tanque => tanque.id === tanqueSelecionado
-            )?.atual /
+            )?.qty /
             tanques.find(
               tanque => tanque.id === tanqueSelecionado
-            )?.capacidade
+            )?.capacity
           ) * 100
-          " :color="theme.liquidFill" />
+          " :color="corFillAtual" />
 
         <div class="flex flex-col text-2xl">
           <span class="font-bold" :style="{ color: theme.textPrimary }">
@@ -30,7 +41,7 @@
               formatarQuantidade(
                 tanques.find(
                   tanque => tanque.id === tanqueSelecionado
-                )?.atual
+                )?.qty
               )
             }}L
           </span>
@@ -40,9 +51,9 @@
               formatarQuantidade(
                 tanques.find(
                   tanque => tanque.id === tanqueSelecionado
-                )?.capacidade
+                )?.capacity
               )
-            }}L
+            }}L{{ tanques.find(tanque => tanque.id === tanqueSelecionado)?.isInox ? ` (${tanques.find(tanque => tanque.id === tanqueSelecionado)?.txCnv}cm)` : '' }}
           </span>
         </div>
       </div>
@@ -133,9 +144,9 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useHomePage } from './composables/useHomePage'
 import { formatarQuantidade } from './composables/useHomePage/formatacao'
-
 import TanqueIcon from './icons/TanqueIcon.vue'
 import IBCIcon from './icons/IBCIcon.vue'
 import BombonaIcon from './icons/BombonaIcon.vue'
@@ -151,6 +162,18 @@ const {
   unidadesBB,
   MAX_QUADRADINHOS
 } = useHomePage()
+
+const tanqueSelecionadoObj = computed(() => {
+  return tanques.value.find(t => t.id === tanqueSelecionado.value)
+})
+
+const corFillAtual = computed(() => {
+  const tanque = tanqueSelecionadoObj.value
+  if (tanque?.variations?.length > 0) {
+    return tanque.variations[tanque.selectedVariation]?.cor || theme.liquidFill
+  }
+  return theme.liquidFill
+})
 </script>
 
 <style>

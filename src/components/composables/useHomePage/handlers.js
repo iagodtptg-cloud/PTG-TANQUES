@@ -1,3 +1,5 @@
+import { parseTankRow } from '../sheetsapi.js'
+
 export function createHandlers(estado, api) {
   const { produtos, tanques, tanqueSelecionado, infoIBC, infoBB, containerSelecionado, busca, selecionado, dropdownOpen, dropdownRef, quantidadeInput, showAlert } = estado
   const { getProductInfo } = api
@@ -6,37 +8,47 @@ export function createHandlers(estado, api) {
     dropdownOpen.value = !dropdownOpen.value
   }
 
-  async function selecionarTanque(id) {
-    selecionado.value = id
-    tanqueSelecionado.value = null
-    containerSelecionado.value = null
-    dropdownOpen.value = false
-    busca.value = ''
-    quantidadeInput.value = ''
+   async function selecionarTanque(id) {
+     selecionado.value = id
+     tanqueSelecionado.value = null
+     containerSelecionado.value = null
+     dropdownOpen.value = false
+     busca.value = ''
+     quantidadeInput.value = ''
 
-    const produto = produtos.value.find(produto => produto.id === id)
-    if (!produto) return
+     const produto = produtos.value.find(produto => produto.id === id)
+     if (!produto) return
 
-    try {
-      const data = await getProductInfo(produto.nome)
-      tanques.value = (data.INFO_TANQUES || []).map((row, index) => ({
-        id: index + 1,
-        nome: row[1],
-        capacidade: parseFloat(row[2]) || 0,
-        atual: parseFloat(row[4]) || 0,
-        isInox: row[5]?.toString().toUpperCase() === 'TRUE',
-        txCnv: parseFloat(row[6]) || 0
-      }))
-      infoIBC.value = data.INFO_IBC || null
-      infoBB.value = data.INFO_BB || null
-    } catch (error) {
-      console.error('Erro ao carregar tanques:', error)
-      tanques.value = []
-      infoIBC.value = null
-      infoBB.value = null
-      showAlert('Erro ao carregar dados do produto')
-    }
-  }
+      try {
+        const data = await getProductInfo(produto.nome)
+        tanques.value = (data.INFO_TANQUES || []).map((row, index) => {
+          const t = parseTankRow(row, index)
+          return {
+            id: index + 1,
+            num: t.num,
+            capacity: t.capacity,
+            realCapacity: t.realCapacity,
+            qty: t.qty,
+            isInox: t.isInox,
+            txCnv: t.txCnv,
+            variations: t.variations,
+            selectedVariation: t.selectedVariation,
+            active: t.active,
+            product: t.product,
+            type: t.type,
+            storageType: t.storageType
+          }
+        })
+        infoIBC.value = data.INFO_IBC || null
+        infoBB.value = data.INFO_BB || null
+      } catch (error) {
+        console.error('Erro ao carregar tanques:', error)
+        tanques.value = []
+        infoIBC.value = null
+        infoBB.value = null
+        showAlert('Erro ao carregar dados do produto')
+      }
+   }
 
   function limparProduto() {
     selecionado.value = null

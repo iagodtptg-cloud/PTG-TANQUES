@@ -16,7 +16,7 @@ export function createComputeds(estado) {
 
     if (containerSelecionado.value?.tipo === 'tanque') {
       const tanque = tanques.value.find(tanque => tanque.id === tanqueSelecionado.value)
-      return tanque ? `${produto.nome} ${tanque.nome}` : produto.nome
+      return tanque ? `${produto.nome} ${tanque.num}` : produto.nome
     }
     if (containerSelecionado.value?.tipo === 'ibc') return `${produto.nome} CONTAINER 1000 LITROS`
     if (containerSelecionado.value?.tipo === 'bb') return `${produto.nome} BOMBONA ${containerSelecionado.value.valor} LITROS`
