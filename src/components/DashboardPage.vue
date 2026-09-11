@@ -12,31 +12,87 @@ const filteredContainers = ref([])
 const filterProduct = ref('ALL')
 const filterStatus = ref('ALL')
 const filterType = ref('ALL')
+const sortTanksBy = ref('DEFAULT')
 const activeTab = ref('products')
-const selectedTankIdx = ref(null)
+const selectedContainer = ref(null)
 const showModal = ref(false)
 
+const isLoading = ref(false)
+const loadError = ref('')
+const expandedAlertIdx = ref(null)
+
+function toggleAlert(idx) {
+  expandedAlertIdx.value = expandedAlertIdx.value === idx ? null : idx
+}
+
+function shortAlert(msg, limit = 140) {
+  if (msg.length <= limit) return msg
+  return msg.slice(0, limit).trimEnd() + '…'
+}
+
 const clock = ref('')
+let clockInterval = null
+
+// ---------- helpers seguros ----------
+function toNumber(v) {
+  const n = parseFloat(v)
+  return Number.isFinite(n) && n >= 0 ? n : 0
+}
+
+function parseActive(v) {
+  return String(v ?? '').trim().toUpperCase() === 'TRUE'
+}
+
+function occupancyPct(qty, capacity) {
+  if (!capacity || capacity <= 0) return 0
+  const p = (qty / capacity) * 100
+  return Number.isFinite(p) ? Math.max(0, Math.min(p, 100)) : 0
+}
+
+function formatLitros(v) {
+  return toNumber(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' L'
+}
+
+function formatM3(litros, digits = 1) {
+  return (toNumber(litros) / 1000).toLocaleString('pt-BR', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  }) + ' m³'
+}
+
+function formatPct1(p) {
+  return Number(p || 0).toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }) + '%'
+}
 
 const kpis = computed(() => {
-  const totalCap = [...allTanks.value, ...allIBCs.value, ...allBBs.value].reduce((s, c) => s + c.capacity, 0)
-  const totalQty = [...allTanks.value, ...allIBCs.value, ...allBBs.value].reduce((s, c) => s + c.qty, 0)
+  const all = [...allTanks.value, ...allIBCs.value, ...allBBs.value]
+  const totalCap = all.reduce((s, c) => s + toNumber(c.capacity), 0)
+  const totalQty = all.reduce((s, c) => s + toNumber(c.qty), 0)
   const activeCount = allTanks.value.filter(t => t.active).length
   const inactiveCount = allTanks.value.filter(t => !t.active).length
-  const globalPct = totalCap ? ((totalQty / totalCap) * 100).toFixed(1) : 0
+  const globalPct = totalCap ? (totalQty / totalCap) * 100 : 0
 
   return [
-    { label: 'Produtos', value: allProducts.value.length, icon: 'fa-flask', color: 'blue', sub: `${allProducts.value.filter(p => getProductSummary(p).totalQty > 0).length} com estoque` },
-    { label: 'Tanques', value: allTanks.value.length, icon: 'fa-database', color: 'purple', sub: `${activeCount} ativos` },
-    { label: 'IBCs / BBs', value: allIBCs.value.length + allBBs.value.length, icon: 'fa-box', color: 'orange', sub: `${allIBCs.value.length} IBCs · ${allBBs.value.length} BBs` },
-    { label: 'Cap. Total', value: (totalCap / 1000).toFixed(0) + 'm³', icon: 'fa-tachometer-alt', color: 'green', sub: totalCap.toLocaleString('pt-BR') + ' L' },
-    { label: 'Estoque Atual', value: (totalQty / 1000).toFixed(1) + 'm³', icon: 'fa-water', color: 'yellow', sub: totalQty.toLocaleString('pt-BR') + ' L' },
-    { label: 'Ocupação Global', value: globalPct + '%', icon: 'fa-chart-pie', color: totalQty > 0 ? 'green' : 'red', sub: `${inactiveCount} tanques inativos` }
+    { label: 'Produtos', value: allProducts.value.length, icon: '🧪', color: 'blue', sub: `${allProducts.value.filter(p => getProductSummary(p).totalQty > 0).length} com estoque` },
+    { label: 'Tanques', value: allTanks.value.length, icon: '🛢️', color: 'purple', sub: `${activeCount} ativos` },
+    { label: 'IBCs / BBs', value: allIBCs.value.length + allBBs.value.length, icon: '📦', color: 'orange', sub: `${allIBCs.value.length} IBCs · ${allBBs.value.length} BBs` },
+    { label: 'Cap. Total', value: formatM3(totalCap, 0), icon: '🏭', color: 'green', sub: formatLitros(totalCap) },
+    { label: 'Estoque Atual', value: formatM3(totalQty, 1), icon: '💧', color: 'yellow', sub: formatLitros(totalQty) },
+    { label: 'Ocupação Global', value: formatPct1(globalPct), icon: '📊', color: totalQty > 0 ? 'green' : 'red', sub: `${inactiveCount} tanques inativos` }
   ]
 })
 
 const productSummaries = computed(() => {
   return allProducts.value.map(product => getProductSummary(product))
+})
+
+// Tabela de produtos respeita o filtro de produto (filtros de status/tipo valem p/ aba Tanques)
+const filteredProductSummaries = computed(() => {
+  if (filterProduct.value === 'ALL') return productSummaries.value
+  return productSummaries.value.filter(p => p.product === filterProduct.value)
 })
 
 const alerts = computed(() => {
@@ -45,7 +101,7 @@ const alerts = computed(() => {
   if (zeroStockProducts.length > 0) {
     result.push({
       type: 'danger',
-      icon: 'fa-exclamation-triangle',
+      icon: '⚠️',
       msg: `${zeroStockProducts.length} produtos com estoque ZERO: ${zeroStockProducts.map(p => p.product).join(', ')}`
     })
   }
@@ -54,8 +110,8 @@ const alerts = computed(() => {
   if (highUsage.length > 0) {
     result.push({
       type: 'warning',
-      icon: 'fa-arrow-up',
-      msg: `Tanques com alta ocupação (>70%): ${highUsage.map(p => `${p.product} ${p.pct.toFixed(0)}%`).join(', ')}`
+      icon: '⬆️',
+      msg: `Tanques com alta ocupação (>70%): ${highUsage.map(p => `${p.product} ${formatPct1(p.pct)}`).join(', ')}`
     })
   }
 
@@ -63,8 +119,8 @@ const alerts = computed(() => {
   if (inactiveWithStock.length > 0) {
     result.push({
       type: 'info',
-      icon: 'fa-info-circle',
-      msg: `${inactiveWithStock.length} tanques INATIVOS ainda possuem estoque (${inactiveWithStock.reduce((s, t) => s + t.qty, 0).toLocaleString('pt-BR')} L)`
+      icon: 'ℹ️',
+      msg: `${inactiveWithStock.length} tanques INATIVOS ainda possuem estoque (${formatLitros(inactiveWithStock.reduce((s, t) => s + t.qty, 0))})`
     })
   }
 
@@ -72,7 +128,7 @@ const alerts = computed(() => {
   if (noStorage.length > 0) {
     result.push({
       type: 'muted',
-      icon: 'fa-question-circle',
+      icon: '❓',
       msg: `Produtos sem armazenamento cadastrado: ${noStorage.join(', ')}`
     })
   }
@@ -84,8 +140,8 @@ function getProductSummary(product) {
   const t = allTanks.value.filter(x => x.product === product)
   const i = allIBCs.value.filter(x => x.product === product)
   const b = allBBs.value.filter(x => x.product === product)
-  const totalCap = [...t, ...i, ...b].reduce((s, x) => s + x.capacity, 0)
-  const totalQty = [...t, ...i, ...b].reduce((s, x) => s + x.qty, 0)
+  const totalCap = [...t, ...i, ...b].reduce((s, x) => s + toNumber(x.capacity), 0)
+  const totalQty = [...t, ...i, ...b].reduce((s, x) => s + toNumber(x.qty), 0)
   const activeTanks = t.filter(x => x.active).length
   const inactiveTanks = t.filter(x => !x.active).length
   return {
@@ -101,61 +157,65 @@ function getProductSummary(product) {
   }
 }
 
+// Cores alinhadas aos tokens de dado (visual.md §4)
 function getKpiColor(color) {
   const colors = {
-    blue: '#4A90E2',
-    purple: '#B44FD8',
-    orange: '#FF8A00',
-    green: '#1ED71E',
-    yellow: '#FFC107',
-    red: '#D32F2F'
+    blue: '#2E86F0', // data.volume
+    purple: '#B44FD8', // data.forecast
+    orange: '#FF8A00', // data.series
+    green: '#1ED71E', // data.money
+    yellow: '#FFB300', // data.count
+    red: '#D32F2F', // data.down
+    cyan: '#22C3DC' // data.period
   }
-  return colors[color] || '#4A90E2'
+  return colors[color] || '#2E86F0'
 }
 
 function getAlertStyle(type) {
   const styles = {
     danger: { borderColor: 'rgba(211, 47, 47, 0.3)', background: 'rgba(211, 47, 47, 0.05)', color: '#ef5350' },
     warning: { borderColor: 'rgba(255, 179, 0, 0.3)', background: 'rgba(255, 179, 0, 0.05)', color: '#ffd54f' },
-    info: { borderColor: 'rgba(74, 144, 226, 0.3)', background: 'rgba(74, 144, 226, 0.05)', color: '#64b5f6' },
+    info: { borderColor: 'rgba(46, 134, 240, 0.3)', background: 'rgba(46, 134, 240, 0.05)', color: '#64b5f6' },
     muted: { borderColor: 'rgba(166, 171, 173, 0.3)', background: 'rgba(166, 171, 173, 0.05)', color: '#a6abad' }
   }
   return styles[type] || styles.info
 }
 
 function getOccupancyColor(pct) {
-  if (pct === 0) return '#D32F2F'
-  if (pct < 30) return '#FFC107'
-  if (pct < 70) return '#4A90E2'
+  const p = Number(pct) || 0
+  if (p <= 0) return '#D32F2F'
+  if (p < 30) return '#FFB300'
+  if (p < 70) return '#2E86F0'
   return '#1ED71E'
 }
 
 function getInsightColor(color) {
   const colors = {
-    yellow: '#FFC107',
-    blue: '#4A90E2',
+    yellow: '#FFB300',
+    blue: '#2E86F0',
     purple: '#B44FD8',
     green: '#1ED71E',
     red: '#D32F2F',
     orange: '#FF8A00'
   }
-  return colors[color] || '#4A90E2'
+  return colors[color] || '#2E86F0'
 }
 
 function getInsightBorder(color) {
   const colors = {
-    yellow: 'rgba(255, 193, 7, 0.3)',
-    blue: 'rgba(74, 144, 226, 0.3)',
+    yellow: 'rgba(255, 179, 0, 0.3)',
+    blue: 'rgba(46, 134, 240, 0.3)',
     purple: 'rgba(180, 79, 216, 0.3)',
     green: 'rgba(30, 215, 30, 0.3)',
     red: 'rgba(211, 47, 47, 0.3)',
     orange: 'rgba(255, 138, 0, 0.3)'
   }
-  return colors[color] || 'rgba(74, 144, 226, 0.3)'
+  return colors[color] || 'rgba(46, 134, 240, 0.3)'
 }
 
 function getGradeColor(grade) {
-  const hex = grade.split('_')[1] || 'FFFFFF'
+  const raw = String(grade || '').split('_')[1] || ''
+  const hex = /^[0-9A-Fa-f]{6}$/.test(raw) ? raw : 'E6B42A'
   return '#' + hex
 }
 
@@ -175,21 +235,61 @@ function applyFilters() {
   filteredContainers.value = items
 }
 
-function openModal(idx) {
-  selectedTankIdx.value = idx
+function tankNumValue(t) {
+  const n = parseInt(String(t.num || '').replace(/\D/g, ''), 10)
+  return Number.isFinite(n) ? n : null
+}
+
+const sortedContainers = computed(() => {
+  const arr = [...filteredContainers.value]
+  switch (sortTanksBy.value) {
+    case 'NUM_ASC':
+      return arr.sort((a, b) => {
+        const na = tankNumValue(a)
+        const nb = tankNumValue(b)
+        if (na === null && nb === null) return 0
+        if (na === null) return 1
+        if (nb === null) return -1
+        return na - nb
+      })
+    case 'NUM_DESC':
+      return arr.sort((a, b) => {
+        const na = tankNumValue(a)
+        const nb = tankNumValue(b)
+        if (na === null && nb === null) return 0
+        if (na === null) return 1
+        if (nb === null) return -1
+        return nb - na
+      })
+    case 'QTY_DESC':
+      return arr.sort((a, b) => toNumber(b.qty) - toNumber(a.qty))
+    case 'QTY_ASC':
+      return arr.sort((a, b) => toNumber(a.qty) - toNumber(b.qty))
+    case 'OCC_DESC':
+      return arr.sort((a, b) => occupancyPct(b.qty, b.capacity) - occupancyPct(a.qty, a.capacity))
+    case 'CAP_DESC':
+      return arr.sort((a, b) => toNumber(b.capacity) - toNumber(a.capacity))
+    case 'PRODUCT_ASC':
+      return arr.sort((a, b) => String(a.product || '').localeCompare(String(b.product || ''), 'pt-BR'))
+    default:
+      return arr
+  }
+})
+
+// Guarda o objeto em vez do índice: filtro pode mudar com o modal aberto
+function openModal(container) {
+  selectedContainer.value = container
   showModal.value = true
 }
 
 function closeModal() {
   showModal.value = false
-  selectedTankIdx.value = null
+  selectedContainer.value = null
 }
 
 function switchTab(tab) {
   activeTab.value = tab
-  if (tab === 'tanks') {
-    applyFilters()
-  }
+  applyFilters()
 }
 
 function updateClock() {
@@ -205,9 +305,11 @@ function updateClock() {
 }
 
 async function loadData() {
+  isLoading.value = true
+  loadError.value = ''
   try {
     const produtosRes = await getProdutos()
-    allProducts.value = produtosRes.values.map(v => v[0])
+    allProducts.value = (produtosRes.values || []).map(v => String(v[0] || '').trim()).filter(Boolean)
 
     const info = await getProductInfo()
 
@@ -216,68 +318,73 @@ async function loadData() {
     const bbs = info.INFO_BB || []
 
     allTanks.value = tanques.map(t => ({
-      product: t[0],
-      num: t[1],
-      capacity: +t[2],
-      type: t[3],
-      qty: +t[4],
-      active: t[5] === 'TRUE',
-      extra: +t[6] || 0,
-      grades: (t.slice(7) || []).filter(g => g && g.trim()),
+      product: String(t[0] || '').trim(),
+      num: String(t[1] || '').trim(),
+      capacity: toNumber(t[2]),
+      type: String(t[3] || '').trim(),
+      qty: toNumber(t[4]),
+      active: parseActive(t[5]),
+      extra: toNumber(t[6]),
+      grades: (t.slice(7) || []).filter(g => g && String(g).trim()),
       storageType: 'TANQUE'
     }))
 
     allIBCs.value = ibcs.map(i => ({
-      product: i[0],
-      capacity: +i[1],
-      type: i[2],
-      qty: +i[3],
+      product: String(i[0] || '').trim(),
+      capacity: toNumber(i[1]),
+      type: String(i[2] || '').trim(),
+      qty: toNumber(i[3]),
       active: true,
       storageType: 'IBC'
     }))
 
     allBBs.value = bbs.map(b => ({
-      product: b[0],
-      capacity: +b[1],
-      type: b[2],
-      qty: +b[3],
+      product: String(b[0] || '').trim(),
+      capacity: toNumber(b[1]),
+      type: String(b[2] || '').trim(),
+      qty: toNumber(b[3]),
       active: true,
       storageType: 'BB'
     }))
 
     applyFilters()
+    // Se o modal estava aberto, fecha: o objeto antigo pode não existir mais
+    if (showModal.value) closeModal()
   } catch (err) {
     console.error('Erro ao carregar dados:', err)
+    loadError.value = 'Não foi possível carregar os dados. Verifique a conexão e tente novamente.'
+  } finally {
+    isLoading.value = false
   }
 }
 
-function generateInsights() {
+function computeInsights() {
   const insights = []
 
   const mostStored = [...productSummaries.value].sort((a, b) => b.totalQty - a.totalQty)[0]
   if (mostStored && mostStored.totalQty > 0) {
     insights.push({
-      icon: 'fa-crown',
+      icon: '👑',
       color: 'yellow',
       title: 'Maior Estoque',
-      text: `${mostStored.product} lidera com ${mostStored.totalQty.toLocaleString('pt-BR')} L (${mostStored.pct.toFixed(1)}% de ocupação).`
+      text: `${mostStored.product} lidera com ${formatLitros(mostStored.totalQty)} (${formatPct1(mostStored.pct)} de ocupação).`
     })
   }
 
   const largestCap = [...productSummaries.value].sort((a, b) => b.totalCap - a.totalCap)[0]
   if (largestCap) {
     insights.push({
-      icon: 'fa-warehouse',
+      icon: '🏭',
       color: 'blue',
       title: 'Maior Capacidade Instalada',
-      text: `${largestCap.product} possui ${largestCap.totalCap.toLocaleString('pt-BR')} L em ${largestCap.tanks + largestCap.ibcs + largestCap.bbs} recipientes.`
+      text: `${largestCap.product} possui ${formatLitros(largestCap.totalCap)} em ${largestCap.tanks + largestCap.ibcs + largestCap.bbs} recipientes.`
     })
   }
 
   const mostTanks = [...productSummaries.value].sort((a, b) => b.tanks - a.tanks)[0]
   if (mostTanks) {
     insights.push({
-      icon: 'fa-layer-group',
+      icon: '🗂️',
       color: 'purple',
       title: 'Mais Tanques',
       text: `${mostTanks.product} ocupa ${mostTanks.tanks} tanques (${mostTanks.activeTanks} ativos, ${mostTanks.inactiveTanks} inativos).`
@@ -288,37 +395,37 @@ function generateInsights() {
   const avgUtil = validProducts.length > 0 ? validProducts.reduce((s, p) => s + p.pct, 0) / validProducts.length : 0
   const subutilMsg = avgUtil < 30 ? '⚠️ Subutilização detectada.' : 'Dentro da faixa normal.'
   insights.push({
-    icon: 'fa-gauge-high',
+    icon: '📈',
     color: 'green',
     title: 'Utilização Média',
-    text: `A ocupação média é de ${avgUtil.toFixed(1)}%. ${subutilMsg}`
+    text: `A ocupação média é de ${formatPct1(avgUtil)}. ${subutilMsg}`
   })
 
   const inactiveStock = allTanks.value.filter(t => !t.active && t.qty > 0)
   if (inactiveStock.length > 0) {
     const totalInactiveStock = inactiveStock.reduce((s, t) => s + t.qty, 0)
     insights.push({
-      icon: 'fa-triangle-exclamation',
+      icon: '🚨',
       color: 'red',
       title: 'Estoque em Tanques Inativos',
-      text: `${inactiveStock.length} tanques INATIVOS contêm ${totalInactiveStock.toLocaleString('pt-BR')} L. Verificar se devem ser reativados.`
+      text: `${inactiveStock.length} tanques INATIVOS contêm ${formatLitros(totalInactiveStock)}. Verificar se devem ser reativados.`
     })
   }
 
   const emptyProducts = productSummaries.value.filter(p => p.totalQty === 0)
-  if (emptyProducts.length > 0) {
+  if (emptyProducts.length > 0 && allProducts.value.length > 0) {
     insights.push({
-      icon: 'fa-ban',
+      icon: '🚫',
       color: 'red',
       title: 'Produtos Sem Estoque',
-      text: `${emptyProducts.length} de ${allProducts.value.length} produtos (${((emptyProducts.length / allProducts.value.length) * 100).toFixed(0)}%) estão vazios.`
+      text: `${emptyProducts.length} de ${allProducts.value.length} produtos (${((emptyProducts.length / allProducts.value.length) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%) estão vazios.`
     })
   }
 
-  const highOcc = allTanks.value.filter(t => t.capacity && (t.qty / t.capacity) > 0.85)
+  const highOcc = allTanks.value.filter(t => t.capacity > 0 && (t.qty / t.capacity) > 0.85)
   if (highOcc.length > 0) {
     insights.push({
-      icon: 'fa-arrow-trend-up',
+      icon: '🔺',
       color: 'orange',
       title: 'Tanques Quase Cheios (>85%)',
       text: `${highOcc.length} tanque(s) acima de 85% de ocupação. Programar transferência ou consumo.`
@@ -328,62 +435,75 @@ function generateInsights() {
   return insights
 }
 
+const insights = computed(() => computeInsights())
+
 watch([filterProduct, filterStatus, filterType], () => applyFilters())
 
 onMounted(() => {
   updateClock()
-  setInterval(updateClock, 1000)
+  clockInterval = setInterval(updateClock, 1000)
   loadData()
 })
 
 onBeforeUnmount(() => {
-  if (window._clockInterval) clearInterval(window._clockInterval)
+  if (clockInterval) {
+    clearInterval(clockInterval)
+    clockInterval = null
+  }
 })
 </script>
 
 <template>
-  <div class="min-h-screen" style="background: var(--surface-app, #222222); color: var(--text-primary, #ffffff)">
-    <header class="sticky top-0 z-50 border-b" style="background: rgba(42, 45, 46, 0.7); backdrop-filter: blur(12px); border-color: rgba(74, 144, 226, 0.1)">
-      <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-green-400 flex items-center justify-center">
-            <i class="fas fa-industry text-white text-lg"></i>
-          </div>
-          <div>
-            <h1 class="text-lg font-bold text-white tracking-tight">ChemControl <span class="text-xs font-normal" style="color: var(--text-muted)">v2.0</span></h1>
-            <p class="text-[10px]" style="color: var(--text-muted); margin-top: -2px">Monitoramento de Tanques & Estoque</p>
-          </div>
+  <div class="min-h-screen" style="background: var(--color-surface-app, #222222); color: var(--color-text-primary, #ffffff)">
+    <header class="sticky top-0 z-50 border-b" style="background: rgba(42, 45, 46, 0.9); backdrop-filter: blur(12px); border-color: var(--color-border-subtle, #4A4E50)">
+      <div class="w-full px-4 sm:px-6 lg:px-8 py-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <nav class="flex items-center gap-2 text-sm justify-start">
+          <RouterLink to="/home" class="px-3 py-1.5 rounded-md" style="color: var(--color-text-secondary); background: var(--color-surface-control, #2A2D2E)">Início</RouterLink>
+          <RouterLink to="/dash" class="px-3 py-1.5 rounded-md font-semibold" style="color: #fff; background: var(--color-data-volume, #2E86F0)">Dashboard</RouterLink>
+        </nav>
+        <div class="flex flex-col items-center">
+          <LogoHeader class="flex-shrink-0" />
+          <p class="text-[10px] italic font-bold tracking-wider" style="color: var(--color-text-muted)">MONITORAMENTO DE TANQUES &amp; ESTOQUE</p>
         </div>
-        <div class="flex items-center gap-4">
-          <div class="hidden sm:flex items-center gap-2 text-xs" style="color: var(--text-muted)">
+        <div class="flex items-center gap-4 justify-end">
+          <div class="hidden sm:flex items-center gap-2 text-xs" style="color: var(--color-text-muted)">
             <span class="w-2 h-2 rounded-full bg-green-400 inline-block" style="animation: pulse 2s infinite"></span>
             Sistema Online
           </div>
-          <div class="text-xs" style="color: var(--text-muted)">{{ clock }}</div>
-          <button @click="loadData" class="p-2 rounded-lg hover:bg-white/5 transition" style="color: var(--text-muted)">
-            <i class="fas fa-sync-alt text-sm"></i>
+          <div class="text-xs hidden sm:block whitespace-nowrap" style="color: var(--color-text-muted)">{{ clock }}</div>
+          <button @click="loadData" :disabled="isLoading" class="p-2 rounded-lg hover:bg-white/5 transition disabled:opacity-50" style="color: var(--color-text-muted)" title="Recarregar dados">
+            <span class="text-sm inline-block" :style="{ animation: isLoading ? 'spin 0.8s linear infinite' : 'none' }">⟳</span>
           </button>
         </div>
       </div>
     </header>
 
-    <main class="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 space-y-6">
-      <section class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+    <main class="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-5">
+      <section v-if="isLoading" class="rounded-md p-6 text-center text-sm" style="background: var(--color-surface-panel, #3A3E40); color: var(--color-text-muted)">
+        <span class="inline-block mb-2 text-xl" style="animation: spin 0.8s linear infinite">⟳</span>
+        <p>Carregando dados da planilha…</p>
+      </section>
+
+      <section v-if="loadError" class="rounded-md border px-4 py-3 flex items-center justify-between gap-3 text-sm" style="border-color: rgba(211,47,47,.4); background: rgba(211,47,47,.07); color: #ef5350">
+        <span>⚠️ {{ loadError }}</span>
+        <button @click="loadData" class="px-3 py-1.5 rounded-md text-xs font-semibold shrink-0" style="background: #D32F2F; color: #fff">Tentar de novo</button>
+      </section>
+
+      <section class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         <div
           v-for="kpi in kpis"
           :key="kpi.label"
-          class="rounded-2xl p-4 transition-all"
+          class="rounded-md p-4 transition-all flex flex-col items-center text-center"
           :style="{
-            background: `linear-gradient(135deg, var(--surface-panel), var(--surface-app))`,
-            border: '1px solid rgba(74, 144, 226, 0.15)'
+            background: 'var(--color-surface-panel, #3A3E40)',
+            border: '1px solid var(--color-border-subtle, #4A4E50)',
+            boxShadow: 'var(--shadow-card, 0 4px 10px rgba(0,0,0,.35))'
           }"
         >
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-[11px] uppercase tracking-wider font-medium" style="color: var(--text-muted)">{{ kpi.label }}</span>
-            <i :class="`fas ${kpi.icon}`" :style="{ color: getKpiColor(kpi.color) }" class="text-sm"></i>
-          </div>
-          <div class="text-2xl font-bold">{{ kpi.value }}</div>
-          <div class="text-[10px]" style="color: var(--text-muted); margin-top: 4px">{{ kpi.sub }}</div>
+          <span class="w-10 h-10 rounded-full flex items-center justify-center text-lg mb-2" style="background: var(--color-surface-badge, #2F3233)">{{ kpi.icon }}</span>
+          <span class="text-[11px] uppercase tracking-wider font-medium" style="color: var(--color-text-muted)">{{ kpi.label }}</span>
+          <div class="text-xl font-bold mt-1 whitespace-nowrap leading-tight" :style="{ color: getKpiColor(kpi.color) }">{{ kpi.value }}</div>
+          <div class="text-[10px]" style="color: var(--color-text-muted); margin-top: 4px">{{ kpi.sub }}</div>
         </div>
       </section>
 
@@ -391,112 +511,137 @@ onBeforeUnmount(() => {
         <div
           v-for="(alert, idx) in alerts"
           :key="idx"
-          class="rounded-xl border px-4 py-3 flex items-start gap-3 text-sm"
+          class="rounded-md border px-4 py-3 flex items-start gap-3 text-sm"
           :style="getAlertStyle(alert.type)"
         >
-          <i :class="`fas ${alert.icon}`" class="mt-0.5"></i>
-          <span>{{ alert.msg }}</span>
+          <span class="mt-0.5 shrink-0">{{ alert.icon }}</span>
+          <span class="flex-1 min-w-0">{{ expandedAlertIdx === idx || alert.msg.length <= 140 ? alert.msg : shortAlert(alert.msg) }}</span>
+          <button
+            v-if="alert.msg.length > 140"
+            @click="toggleAlert(idx)"
+            class="text-xs font-semibold underline underline-offset-2 shrink-0 opacity-80 hover:opacity-100"
+          >
+            {{ expandedAlertIdx === idx ? 'ver menos' : 'ver mais' }}
+          </button>
         </div>
       </section>
 
-      <section class="rounded-2xl p-4" style="background: var(--surface-panel, #3a3e40); border: 1px solid rgba(74, 144, 226, 0.15)">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div class="flex items-center gap-2 text-sm" style="color: var(--text-muted)">
-            <i class="fas fa-filter"></i>
-            <span class="font-medium">Filtros:</span>
-          </div>
-          <select v-model="filterProduct" class="rounded-lg px-3 py-2 text-sm w-full sm:w-64" style="background: var(--surface-control, #2a2d2e); border: 1px solid rgba(74, 144, 226, 0.2); color: var(--text-secondary)">
-            <option value="ALL">Todos os Produtos</option>
-            <option v-for="p in allProducts" :key="p" :value="p">{{ p }}</option>
-          </select>
-          <select v-model="filterStatus" class="rounded-lg px-3 py-2 text-sm w-full sm:w-48" style="background: var(--surface-control, #2a2d2e); border: 1px solid rgba(74, 144, 226, 0.2); color: var(--text-secondary)">
-            <option value="ALL">Todos os Status</option>
-            <option value="ACTIVE">Ativos</option>
-            <option value="INACTIVE">Inativos</option>
-          </select>
-          <select v-model="filterType" class="rounded-lg px-3 py-2 text-sm w-full sm:w-48" style="background: var(--surface-control, #2a2d2e); border: 1px solid rgba(74, 144, 226, 0.2); color: var(--text-secondary)">
-            <option value="ALL">Todos os Tipos</option>
-            <option value="TANQUE">Tanques</option>
-            <option value="IBC">IBCs</option>
-            <option value="BB">Bombonas</option>
-          </select>
-          <div class="ml-auto flex items-center gap-2">
-            <span class="text-xs" style="color: var(--text-muted)">{{ filteredContainers.length }} registros</span>
+      <section class="rounded-md p-4 sm:p-5" style="background: var(--color-surface-panel, #3A3E40); border: 1px solid var(--color-border-subtle, #4A4E50)">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto] items-end gap-3">
+          <label class="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wider" style="color: var(--color-text-muted)">
+            <span class="italic">🔎 Produto</span>
+            <select v-model="filterProduct" class="rounded-md px-3 py-2 text-sm w-full font-normal normal-case tracking-normal" style="background: var(--color-surface-control, #2a2d2e); border: 1px solid var(--color-border-subtle, #4A4E50); color: var(--color-text-secondary)">
+              <option value="ALL">Todos os Produtos</option>
+              <option v-for="p in allProducts" :key="p" :value="p">{{ p }}</option>
+            </select>
+          </label>
+          <label class="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wider" style="color: var(--color-text-muted)">
+            <span class="italic">Status</span>
+            <select v-model="filterStatus" class="rounded-md px-3 py-2 text-sm w-full font-normal normal-case tracking-normal" style="background: var(--color-surface-control, #2a2d2e); border: 1px solid var(--color-border-subtle, #4A4E50); color: var(--color-text-secondary)">
+              <option value="ALL">Todos os Status</option>
+              <option value="ACTIVE">Ativos</option>
+              <option value="INACTIVE">Inativos</option>
+            </select>
+          </label>
+          <label class="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wider" style="color: var(--color-text-muted)">
+            <span class="italic">Tipo</span>
+            <select v-model="filterType" class="rounded-md px-3 py-2 text-sm w-full font-normal normal-case tracking-normal" style="background: var(--color-surface-control, #2a2d2e); border: 1px solid var(--color-border-subtle, #4A4E50); color: var(--color-text-secondary)">
+              <option value="ALL">Todos os Tipos</option>
+              <option value="TANQUE">Tanques</option>
+              <option value="IBC">IBCs</option>
+              <option value="BB">Bombonas</option>
+            </select>
+          </label>
+          <div class="flex sm:justify-end">
+            <span class="px-3 py-1.5 rounded-full text-xs whitespace-nowrap" style="background: var(--color-surface-badge, #2F3233); color: var(--color-text-muted)">{{ filteredContainers.length }} registros</span>
           </div>
         </div>
       </section>
 
-      <section>
-        <div class="flex gap-1 mb-4 rounded-xl p-1 w-fit" style="background: var(--surface-control, #2a2d2e)">
+      <nav class="flex justify-center">
+        <div class="inline-flex gap-1 rounded-full p-1.5" style="background: var(--color-surface-panel, #3A3E40); border: 1px solid var(--color-border-subtle, #4A4E50); box-shadow: var(--shadow-card, 0 4px 10px rgba(0,0,0,.35))">
           <button
             @click="switchTab('products')"
-            class="px-4 py-2 rounded-lg text-sm font-medium transition"
+            class="px-5 sm:px-8 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition flex items-center gap-2"
             :style="{
-              background: activeTab === 'products' ? 'linear-gradient(135deg, #4A90E2, #357ABD)' : 'transparent',
-              color: activeTab === 'products' ? 'white' : 'var(--text-muted)'
+              background: activeTab === 'products' ? 'var(--color-data-volume, #2E86F0)' : 'transparent',
+              color: activeTab === 'products' ? 'white' : 'var(--color-text-muted)'
             }"
           >
-            <i class="fas fa-boxes-stacked mr-1"></i> Produtos
+            Produtos
+            <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold" :style="{ background: activeTab === 'products' ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-badge, #2F3233)', color: activeTab === 'products' ? 'white' : 'var(--color-text-muted)' }">{{ filteredProductSummaries.length }}</span>
           </button>
           <button
             @click="switchTab('tanks')"
-            class="px-4 py-2 rounded-lg text-sm font-medium transition"
+            class="px-5 sm:px-8 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition flex items-center gap-2"
             :style="{
-              background: activeTab === 'tanks' ? 'linear-gradient(135deg, #4A90E2, #357ABD)' : 'transparent',
-              color: activeTab === 'tanks' ? 'white' : 'var(--text-muted)'
+              background: activeTab === 'tanks' ? 'var(--color-data-volume, #2E86F0)' : 'transparent',
+              color: activeTab === 'tanks' ? 'white' : 'var(--color-text-muted)'
             }"
           >
-            <i class="fas fa-database mr-1"></i> Tanques
+            Tanques
+            <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold" :style="{ background: activeTab === 'tanks' ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-badge, #2F3233)', color: activeTab === 'tanks' ? 'white' : 'var(--color-text-muted)' }">{{ filteredContainers.length }}</span>
           </button>
           <button
             @click="switchTab('insights')"
-            class="px-4 py-2 rounded-lg text-sm font-medium transition"
+            class="px-5 sm:px-8 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition flex items-center gap-2"
             :style="{
-              background: activeTab === 'insights' ? 'linear-gradient(135deg, #4A90E2, #357ABD)' : 'transparent',
-              color: activeTab === 'insights' ? 'white' : 'var(--text-muted)'
+              background: activeTab === 'insights' ? 'var(--color-data-volume, #2E86F0)' : 'transparent',
+              color: activeTab === 'insights' ? 'white' : 'var(--color-text-muted)'
             }"
           >
-            <i class="fas fa-lightbulb mr-1"></i> Insights
+            percepções
+            <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold" :style="{ background: activeTab === 'insights' ? 'rgba(255,255,255,0.2)' : 'var(--color-surface-badge, #2F3233)', color: activeTab === 'insights' ? 'white' : 'var(--color-text-muted)' }">{{ insights.length }}</span>
           </button>
         </div>
+      </nav>
 
-        <div v-if="activeTab === 'products'" class="rounded-2xl overflow-hidden" style="background: var(--surface-panel, #3a3e40); border: 1px solid rgba(74, 144, 226, 0.15)">
+      <section>
+
+        <div v-if="activeTab === 'products'" class="rounded-md overflow-hidden" style="background: var(--color-surface-panel, #3A3E40); border: 1px solid var(--color-border-subtle, #4A4E50)">
+          <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color: var(--color-border-divider, #565A5C)">
+            <h2 class="text-sm font-bold italic" style="color: var(--color-text-primary, #fff)">PRODUTOS EM ESTOQUE</h2>
+            <span class="text-xs" style="color: var(--color-text-muted)">{{ filteredProductSummaries.length }} itens</span>
+          </div>
           <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            <table class="w-full text-sm min-w-[720px]">
               <thead>
-                <tr class="border-b" style="border-color: rgba(100, 110, 120, 0.5); background: rgba(0, 0, 0, 0.2)">
-                  <th class="px-4 py-3 text-left text-xs uppercase tracking-wider font-medium" style="color: var(--text-heading, #e6b42a)">Produto</th>
-                  <th class="px-4 py-3 text-center text-xs uppercase tracking-wider font-medium" style="color: var(--text-heading, #e6b42a)">Tanques</th>
-                  <th class="px-4 py-3 text-center text-xs uppercase tracking-wider font-medium" style="color: var(--text-heading, #e6b42a)">IBCs</th>
-                  <th class="px-4 py-3 text-center text-xs uppercase tracking-wider font-medium" style="color: var(--text-heading, #e6b42a)">Bombonas</th>
-                  <th class="px-4 py-3 text-right text-xs uppercase tracking-wider font-medium" style="color: var(--text-heading, #e6b42a)">Cap. Total (L)</th>
-                  <th class="px-4 py-3 text-right text-xs uppercase tracking-wider font-medium" style="color: var(--text-heading, #e6b42a)">Estoque (L)</th>
-                  <th class="px-4 py-3 text-center text-xs uppercase tracking-wider font-medium" style="color: var(--text-heading, #e6b42a)">Ocupação</th>
-                  <th class="px-4 py-3 text-center text-xs uppercase tracking-wider font-medium" style="color: var(--text-heading, #e6b42a)">Status</th>
+                <tr class="border-b" style="border-color: var(--color-border-divider, #565A5C); background: rgba(0, 0, 0, 0.2)">
+                  <th class="px-4 py-3 text-left text-xs uppercase tracking-wider font-medium" style="color: var(--color-text-heading, #e6b42a)">Produto</th>
+                  <th class="px-4 py-3 text-center text-xs uppercase tracking-wider font-medium hidden md:table-cell" style="color: var(--color-text-heading, #e6b42a)">Tanques</th>
+                  <th class="px-4 py-3 text-center text-xs uppercase tracking-wider font-medium hidden md:table-cell" style="color: var(--color-text-heading, #e6b42a)">IBCs</th>
+                  <th class="px-4 py-3 text-center text-xs uppercase tracking-wider font-medium hidden md:table-cell" style="color: var(--color-text-heading, #e6b42a)">Bombonas</th>
+                  <th class="px-4 py-3 text-right text-xs uppercase tracking-wider font-medium hidden sm:table-cell" style="color: var(--color-text-heading, #e6b42a)">Cap. Total (L)</th>
+                  <th class="px-4 py-3 text-right text-xs uppercase tracking-wider font-medium" style="color: var(--color-text-heading, #e6b42a)">Estoque (L)</th>
+                  <th class="px-4 py-3 text-center text-xs uppercase tracking-wider font-medium" style="color: var(--color-text-heading, #e6b42a)">Ocupação</th>
+                  <th class="px-4 py-3 text-center text-xs uppercase tracking-wider font-medium" style="color: var(--color-text-heading, #e6b42a)">Status</th>
                 </tr>
               </thead>
               <tbody>
+                <tr v-if="filteredProductSummaries.length === 0">
+                  <td colspan="8" class="px-4 py-8 text-center text-sm" style="color: var(--color-text-muted)">Nenhum produto encontrado para o filtro atual.</td>
+                </tr>
                 <tr
-                  v-for="p in productSummaries"
+                  v-for="p in filteredProductSummaries"
                   :key="p.product"
                   class="border-b hover:bg-white/[0.02] transition"
                   style="border-color: rgba(100, 110, 120, 0.3)"
                 >
                   <td class="px-4 py-3">
-                    <div class="font-medium text-white text-xs">{{ p.product }}</div>
-                    <div v-if="p.inactiveTanks > 0" class="text-[10px]" style="color: var(--text-muted)">{{ p.inactiveTanks }} tanq. inativo(s)</div>
+                    <div class="font-medium text-xs" style="color: var(--color-text-primary, #fff)">{{ p.product }}</div>
+                    <div v-if="p.inactiveTanks > 0" class="text-[10px]" style="color: var(--color-text-muted)">{{ p.inactiveTanks }} tanq. inativo(s)</div>
                   </td>
-                  <td class="px-4 py-3 text-center">{{ p.tanks || '—' }}</td>
-                  <td class="px-4 py-3 text-center">{{ p.ibcs || '—' }}</td>
-                  <td class="px-4 py-3 text-center">{{ p.bbs || '—' }}</td>
-                  <td class="px-4 py-3 text-right font-mono">{{ p.totalCap.toLocaleString('pt-BR') }}</td>
+                  <td class="px-4 py-3 text-center hidden md:table-cell">{{ p.tanks || '—' }}</td>
+                  <td class="px-4 py-3 text-center hidden md:table-cell">{{ p.ibcs || '—' }}</td>
+                  <td class="px-4 py-3 text-center hidden md:table-cell">{{ p.bbs || '—' }}</td>
+                  <td class="px-4 py-3 text-right font-mono hidden sm:table-cell">{{ p.totalCap.toLocaleString('pt-BR') }}</td>
                   <td class="px-4 py-3 text-right font-mono font-semibold" :style="{ color: getOccupancyColor(p.pct) }">{{ p.totalQty.toLocaleString('pt-BR') }}</td>
                   <td class="px-4 py-3">
                     <div class="flex items-center gap-2 justify-center">
-                      <div class="w-20 h-2 rounded-full overflow-hidden" style="background: var(--surface-raised, #4a4e50)">
+                      <div class="w-20 h-2 rounded-full overflow-hidden" style="background: var(--color-surface-raised, #4a4e50)">
                         <div class="h-full rounded-full transition-all" :style="{ width: Math.min(p.pct, 100) + '%', background: getOccupancyColor(p.pct) }"></div>
                       </div>
-                      <span class="text-xs font-mono w-10 text-right" :style="{ color: getOccupancyColor(p.pct) }">{{ p.pct.toFixed(1) }}%</span>
+                      <span class="text-xs font-mono italic font-bold w-14 text-right" :style="{ color: getOccupancyColor(p.pct) }">{{ formatPct1(p.pct) }}</span>
                     </div>
                   </td>
                   <td class="px-4 py-3 text-center">
@@ -509,145 +654,171 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div v-if="activeTab === 'tanks'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          <div
-            v-for="(tank, idx) in filteredContainers"
-            :key="idx"
-            @click="openModal(idx)"
-            class="rounded-xl p-3 cursor-pointer transition-all"
-            :style="{
-              background: 'var(--surface-panel, #3a3e40)',
-              border: `1px solid ${tank.active ? 'rgba(74, 144, 226, 0.3)' : 'rgba(100, 110, 120, 0.3)'}`,
-              boxShadow: '0 4px 10px rgba(0, 0, 0, 0.35)'
-            }"
-          >
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-[10px] font-mono" style="color: var(--text-muted)">{{ tank.type }}{{ tank.num ? `-${tank.num}` : '' }}</span>
-              <span
-                class="w-2 h-2 rounded-full"
-                :style="{
-                  background: tank.active ? '#22c55e' : '#6b7280',
-                  animation: tank.active ? 'pulse 2s infinite' : 'none'
-                }"
-              ></span>
-            </div>
-            <div class="text-[11px] font-semibold text-white truncate mb-2" :title="tank.product">{{ tank.product }}</div>
-            <div class="relative w-full h-16 rounded-lg overflow-hidden mb-2" :style="{ background: 'var(--surface-raised, #4a4e50)' }">
-              <div
-                class="absolute bottom-0 w-full rounded-b-lg transition-all"
-                :style="{
-                  height: Math.max((tank.qty / tank.capacity) * 100, 2) + '%',
-                  background: getOccupancyColor((tank.qty / tank.capacity) * 100),
-                  opacity: 0.7
-                }"
-              ></div>
-              <div class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow">
-                {{ ((tank.qty / tank.capacity) * 100).toFixed(0) }}%
+        <div v-if="activeTab === 'tanks'">
+          <div v-if="filteredContainers.length === 0" class="rounded-md p-8 text-center text-sm" style="background: var(--color-surface-panel, #3A3E40); color: var(--color-text-muted)">
+            Nenhum recipiente encontrado para os filtros atuais.
+          </div>
+          <div v-else class="rounded-md p-4" style="background: var(--color-surface-panel, #3A3E40); border: 1px solid var(--color-border-subtle, #4A4E50)">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
+              <h2 class="text-sm font-bold italic" style="color: var(--color-text-primary, #fff)">RECIPIENTES</h2>
+              <div class="flex items-center gap-2 sm:ml-auto">
+                <label class="text-[11px] uppercase tracking-wider font-medium whitespace-nowrap" style="color: var(--color-text-muted)" for="tank-sort">Ordenar:</label>
+                <select id="tank-sort" v-model="sortTanksBy" class="rounded-md px-3 py-1.5 text-xs w-full sm:w-52" style="background: var(--color-surface-control, #2a2d2e); border: 1px solid var(--color-border-subtle, #4A4E50); color: var(--color-text-secondary)">
+                  <option value="DEFAULT">Ordem padrão</option>
+                  <option value="NUM_ASC">Numeração crescente</option>
+                  <option value="NUM_DESC">Numeração decrescente</option>
+                  <option value="QTY_DESC">Maior quantidade</option>
+                  <option value="QTY_ASC">Menor quantidade</option>
+                  <option value="OCC_DESC">Maior ocupação %</option>
+                  <option value="CAP_DESC">Maior capacidade</option>
+                  <option value="PRODUCT_ASC">Produto A–Z</option>
+                </select>
               </div>
             </div>
-            <div class="flex justify-between text-[10px]" style="color: var(--text-muted)">
-              <span>{{ tank.qty.toLocaleString('pt-BR') }} L</span>
-              <span>{{ tank.capacity.toLocaleString('pt-BR') }} L</span>
+            <p class="text-xs mb-3" style="color: var(--color-text-muted)">{{ filteredContainers.length }} registros · clique para detalhes</p>
+            <div class="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3 sm:gap-4">
+            <div
+              v-for="(tank, idx) in sortedContainers"
+              :key="`${tank.storageType}-${tank.type}-${tank.num || idx}`"
+              @click="openModal(tank)"
+              class="rounded-md p-3 sm:p-4 cursor-pointer transition-all hover:-translate-y-0.5"
+              :style="{
+                background: 'var(--color-surface-panel, #3a3e40)',
+                border: `1px solid ${tank.active ? 'var(--color-border-subtle, #4A4E50)' : '#565A5C'}`,
+                boxShadow: 'var(--shadow-card, 0 4px 10px rgba(0, 0, 0, 0.35))'
+              }"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-mono uppercase" style="color: var(--color-text-muted)">{{ tank.type }}{{ tank.num ? `-${tank.num}` : '' }}</span>
+                <span
+                  class="w-2 h-2 rounded-full"
+                  :style="{
+                    background: tank.active ? '#1ED71E' : '#6b7280',
+                    animation: tank.active ? 'pulse 2s infinite' : 'none'
+                  }"
+                ></span>
+              </div>
+              <div class="text-[11px] font-semibold truncate mb-2 uppercase" style="color: var(--color-text-primary, #fff)" :title="tank.product">{{ tank.product }}</div>
+              <div class="relative w-full h-16 rounded-md overflow-hidden mb-2" :style="{ background: 'var(--color-surface-raised, #4a4e50)' }">
+                <div
+                  class="absolute bottom-0 w-full transition-all"
+                  :style="{
+                    height: Math.max(occupancyPct(tank.qty, tank.capacity), 2) + '%',
+                    background: getOccupancyColor(occupancyPct(tank.qty, tank.capacity)),
+                    opacity: 0.7
+                  }"
+                ></div>
+                <div class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow">
+                  {{ formatPct1(occupancyPct(tank.qty, tank.capacity)) }}
+                </div>
+              </div>
+              <div class="flex justify-between text-[10px]" style="color: var(--color-text-muted)">
+                <span>{{ toNumber(tank.qty).toLocaleString('pt-BR') }} L</span>
+                <span>{{ toNumber(tank.capacity).toLocaleString('pt-BR') }} L</span>
+              </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div v-if="activeTab === 'insights'" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div v-if="activeTab === 'insights'" class="rounded-md p-4" style="background: var(--color-surface-panel, #3A3E40); border: 1px solid var(--color-border-subtle, #4A4E50)">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-bold italic" style="color: var(--color-text-primary, #fff)">INSIGHTS AUTOMÁTICOS</h2>
+            <span class="text-xs" style="color: var(--color-text-muted)">{{ insights.length }} achados</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div
-              v-for="insight in generateInsights()"
+              v-for="insight in insights"
               :key="insight.title"
-              class="rounded-xl p-4 transition-all"
+              class="rounded-md p-4 transition-all"
               :style="{
-                background: `linear-gradient(135deg, var(--surface-panel), var(--surface-app))`,
+                background: 'var(--color-surface-panel, #3A3E40)',
                 border: `1px solid ${getInsightBorder(insight.color)}`,
-                boxShadow: '0 4px 10px rgba(0, 0, 0, 0.35)'
+                boxShadow: 'var(--shadow-card, 0 4px 10px rgba(0, 0, 0, 0.35))'
               }"
             >
               <div class="flex items-center gap-2 mb-2">
-                <i :class="`fas ${insight.icon}`" :style="{ color: getInsightColor(insight.color) }"></i>
-                <h4 class="text-sm font-bold text-white">{{ insight.title }}</h4>
+                <span class="w-8 h-8 rounded-full flex items-center justify-center" :style="{ background: 'var(--color-surface-badge, #2F3233)', color: getInsightColor(insight.color) }">{{ insight.icon }}</span>
+                <h4 class="text-sm font-bold italic" style="color: var(--color-text-primary, #fff)">{{ insight.title }}</h4>
               </div>
-              <p class="text-xs" style="color: var(--text-muted); line-height: 1.5">{{ insight.text }}</p>
+              <p class="text-xs" style="color: var(--color-text-muted); line-height: 1.5">{{ insight.text }}</p>
             </div>
           </div>
         </div>
       </section>
-
-      <LogoHeader class="mt-8 mb-4" />
     </main>
 
     <div
-      v-if="showModal && selectedTankIdx !== null"
+      v-if="showModal && selectedContainer"
       @click.self="closeModal"
       class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
       style="backdrop-filter: blur(4px)"
     >
-      <div class="rounded-2xl p-6 max-w-md w-full mx-4" style="background: var(--surface-panel, #3a3e40); border: 1px solid rgba(74, 144, 226, 0.15); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35)">
+      <div class="rounded-md p-6 max-w-md w-full mx-4" style="background: var(--color-surface-panel, #3a3e40); border: 1px solid var(--color-border-subtle, #4A4E50); box-shadow: var(--shadow-card, 0 4px 10px rgba(0, 0, 0, 0.35))">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold text-white">{{ filteredContainers[selectedTankIdx]?.type }} {{ filteredContainers[selectedTankIdx]?.num || '' }}</h3>
-          <button @click="closeModal" class="text-gray-400 hover:text-white transition">
-            <i class="fas fa-times"></i>
+          <h3 class="text-lg font-bold" style="color: var(--color-text-primary, #fff)">{{ selectedContainer.type }} {{ selectedContainer.num || '' }}</h3>
+          <button @click="closeModal" class="hover:opacity-70 transition" style="color: var(--color-text-muted)">
+            ✕
           </button>
         </div>
 
-        <div v-if="filteredContainers[selectedTankIdx]" class="space-y-3">
+        <div class="space-y-3">
           <div class="flex items-center gap-2">
-            <span class="text-xs" style="color: var(--text-muted); width: 80px">Produto:</span>
-            <span class="text-sm font-semibold text-white">{{ filteredContainers[selectedTankIdx].product }}</span>
+            <span class="text-xs" style="color: var(--color-text-muted); width: 80px">Produto:</span>
+            <span class="text-sm font-semibold uppercase" style="color: var(--color-text-primary, #fff)">{{ selectedContainer.product }}</span>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-xs" style="color: var(--text-muted); width: 80px">Tipo:</span>
-            <span class="text-sm" style="color: var(--text-secondary)">{{ filteredContainers[selectedTankIdx].storageType }}</span>
+            <span class="text-xs" style="color: var(--color-text-muted); width: 80px">Tipo:</span>
+            <span class="text-sm" style="color: var(--color-text-secondary)">{{ selectedContainer.storageType }}</span>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-xs" style="color: var(--text-muted); width: 80px">Status:</span>
+            <span class="text-xs" style="color: var(--color-text-muted); width: 80px">Status:</span>
             <span
               class="px-2 py-0.5 rounded-full text-[10px] border"
-              :style="filteredContainers[selectedTankIdx].active
+              :style="selectedContainer.active
                 ? { background: 'rgba(46, 204, 113, 0.15)', color: '#2ecc71', borderColor: 'rgba(46, 204, 113, 0.3)' }
                 : { background: 'rgba(211, 47, 47, 0.15)', color: '#d32f2f', borderColor: 'rgba(211, 47, 47, 0.3)' }
               "
             >
-              {{ filteredContainers[selectedTankIdx].active ? 'ATIVO' : 'INATIVO' }}
+              {{ selectedContainer.active ? 'ATIVO' : 'INATIVO' }}
             </span>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-xs" style="color: var(--text-muted); width: 80px">Capacidade:</span>
-            <span class="text-sm font-mono" style="color: var(--text-secondary)">{{ filteredContainers[selectedTankIdx].capacity.toLocaleString('pt-BR') }} L</span>
+            <span class="text-xs" style="color: var(--color-text-muted); width: 80px">Capacidade:</span>
+            <span class="text-sm font-mono" style="color: var(--color-text-secondary)">{{ formatLitros(selectedContainer.capacity) }}</span>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-xs" style="color: var(--text-muted); width: 80px">Estoque:</span>
-            <span class="text-sm font-mono font-bold" :style="{ color: getOccupancyColor((filteredContainers[selectedTankIdx].qty / filteredContainers[selectedTankIdx].capacity) * 100) }">
-              {{ filteredContainers[selectedTankIdx].qty.toLocaleString('pt-BR') }} L
+            <span class="text-xs" style="color: var(--color-text-muted); width: 80px">Estoque:</span>
+            <span class="text-sm font-mono font-bold" :style="{ color: getOccupancyColor(occupancyPct(selectedContainer.qty, selectedContainer.capacity)) }">
+              {{ formatLitros(selectedContainer.qty) }}
             </span>
           </div>
 
           <div class="mt-3">
             <div
               class="w-full h-4 rounded-full overflow-hidden"
-              style="background: var(--surface-raised, #4a4e50)"
+              style="background: var(--color-surface-raised, #4a4e50)"
             >
               <div
                 class="h-full rounded-full transition-all"
-                :style="{ width: Math.min((filteredContainers[selectedTankIdx].qty / filteredContainers[selectedTankIdx].capacity) * 100, 100) + '%', background: getOccupancyColor((filteredContainers[selectedTankIdx].qty / filteredContainers[selectedTankIdx].capacity) * 100) }"
+                :style="{ width: Math.min(occupancyPct(selectedContainer.qty, selectedContainer.capacity), 100) + '%', background: getOccupancyColor(occupancyPct(selectedContainer.qty, selectedContainer.capacity)) }"
               ></div>
             </div>
-            <div class="text-center text-xs mt-1" :style="{ color: getOccupancyColor((filteredContainers[selectedTankIdx].qty / filteredContainers[selectedTankIdx].capacity) * 100) }">
-              {{ ((filteredContainers[selectedTankIdx].qty / filteredContainers[selectedTankIdx].capacity) * 100).toFixed(1) }}% ocupado
+            <div class="text-center text-xs mt-1 italic font-bold" :style="{ color: getOccupancyColor(occupancyPct(selectedContainer.qty, selectedContainer.capacity)) }">
+              {{ formatPct1(occupancyPct(selectedContainer.qty, selectedContainer.capacity)) }} ocupado
             </div>
           </div>
 
-          <div v-if="filteredContainers[selectedTankIdx].grades && filteredContainers[selectedTankIdx].grades.length > 0" class="mt-3 pt-3 border-t" style="border-color: rgba(100, 110, 120, 0.3)">
-            <span class="text-xs" style="color: var(--text-muted); display: block; margin-bottom: 8px">Variações disponíveis:</span>
+          <div v-if="selectedContainer.grades && selectedContainer.grades.length > 0" class="mt-3 pt-3 border-t" style="border-color: var(--color-border-divider, #565A5C)">
+            <span class="text-xs italic font-bold" style="color: var(--color-text-muted); display: block; margin-bottom: 8px">VARIAÇÕES DISPONÍVEIS:</span>
             <div class="flex flex-wrap gap-1">
               <span
-                v-for="grade in filteredContainers[selectedTankIdx].grades"
+                v-for="grade in selectedContainer.grades"
                 :key="grade"
                 class="px-2 py-1 rounded-md text-[10px] font-medium"
                 :style="{ background: getGradeColor(grade) + '22', color: getGradeColor(grade), border: `1px solid ${getGradeColor(grade)}44` }"
               >
-                {{ grade.split('_')[0] }}
+                {{ String(grade).split('_')[0] }}
               </span>
             </div>
           </div>
@@ -661,5 +832,8 @@ onBeforeUnmount(() => {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
