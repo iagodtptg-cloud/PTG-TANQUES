@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "slug": "ptg-tanques",
+  "title": { "pt": "PTG Tanques" },
+  "summary": {
+    "pt": "Sistema web de controle de estoque de tanques, IBCs e bombonas: registra entradas e saídas por nível e mostra ocupação, alertas e insights em um dashboard com dados da planilha."
+  },
+  "status": "live",
+  "category": {
+    "slug": "gestao",
+    "name": { "pt": "gestão" },
+    "tagline": { "pt": "Sistemas que organizam a operação: cotação, carga, cadastro e relatório no mesmo lugar." },
+    "colors": ["#ffffff", "#0b0b0b", "#8a8a8a"],
+    "fx": "grid"
+  },
+  "stack": ["Vue 3", "Vite", "Tailwind CSS", "Vue Router", "Google Sheets API", "Netlify"],
+  "facts": {
+    "role": { "pt": "Desenvolvedor full stack" },
+    "period": { "start": "2026-08", "end": "atual" },
+    "context": { "pt": "projeto de trabalho" }
+  },
+  "links": [
+    { "kind": "repo", "url": "https://github.com/iagodtptg-cloud/PTG-TANQUES" }
+  ],
+  "thumbnail": "thumbnail.png",
+  "shots": [
+    { "file": "shots/01-dashboard-kpis.png", "caption": { "pt": "dashboard com KPIs de estoque, alerta de produtos zerados e filtros" }, "format": "desktop" },
+    { "file": "shots/02-controle-tanque.png", "caption": { "pt": "controle do tanque: nível em cm, entrada, saída e capacidade" }, "format": "desktop" },
+    { "file": "shots/03-insights.png", "caption": { "pt": "insights automáticos sobre ocupação e estoque" }, "format": "desktop" }
+  ],
+  "docs": [
+    { "name": "README", "file": "docs/readme.md" },
+    { "name": "ARQUITETURA", "file": "docs/arquitetura.md" },
+    { "name": "CHANGELOG", "file": "docs/changelog.md" }
+  ]
+}
